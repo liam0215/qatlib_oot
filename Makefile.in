@@ -368,6 +368,7 @@ KO_MODULES_LIST = drivers/crypto/qat/qat_common/intel_qat.ko \
 #Firmwares list
 BIN_LIST = $(am__append_1) $(am__append_2)
 @ICP_ASYM_ONLY_AC_FALSE@@ICP_DC_ONLY_AC_FALSE@@ICP_DC_SYM_ONLY_AC_FALSE@@ICP_SYM_ONLY_AC_FALSE@@KAPI_AC_FALSE@CONFIG_LIST = 4xxx_template.conf \
+@ICP_ASYM_ONLY_AC_FALSE@@ICP_DC_ONLY_AC_FALSE@@ICP_DC_SYM_ONLY_AC_FALSE@@ICP_SYM_ONLY_AC_FALSE@@KAPI_AC_FALSE@CONFIG_LIST = 4xxx_template.conf.sym.asym.svm \
 @ICP_ASYM_ONLY_AC_FALSE@@ICP_DC_ONLY_AC_FALSE@@ICP_DC_SYM_ONLY_AC_FALSE@@ICP_SYM_ONLY_AC_FALSE@@KAPI_AC_FALSE@	4xxxvf_dev0.conf.vm \
 @ICP_ASYM_ONLY_AC_FALSE@@ICP_DC_ONLY_AC_FALSE@@ICP_DC_SYM_ONLY_AC_FALSE@@ICP_SYM_ONLY_AC_FALSE@@KAPI_AC_FALSE@	vqat-adi_dev0.conf.sym \
 @ICP_ASYM_ONLY_AC_FALSE@@ICP_DC_ONLY_AC_FALSE@@ICP_DC_SYM_ONLY_AC_FALSE@@ICP_SYM_ONLY_AC_FALSE@@KAPI_AC_FALSE@	vqat-adi_dev0.conf.asym \
@@ -379,6 +380,7 @@ BIN_LIST = $(am__append_1) $(am__append_2)
 
 #Config files list
 @ICP_ASYM_ONLY_AC_TRUE@CONFIG_LIST = 4xxx_template.conf.asym \
+@ICP_ASYM_ONLY_AC_TRUE@CONFIG_LIST = 4xxx_template.conf.sym.asym.svm \
 @ICP_ASYM_ONLY_AC_TRUE@	4xxxvf_dev0.conf.asym.vm
 @ICP_DC_ONLY_AC_TRUE@CONFIG_LIST = 4xxx_template.conf.dc \
 @ICP_DC_ONLY_AC_TRUE@	4xxxvf_dev0.conf.dc.vm \
@@ -421,7 +423,7 @@ numC62xDevicesV := `lspci -n | egrep -c "$(INTEL_VENDORID):$(QAT_C62X_DEVICE_NUM
 numVQATDevices := `lspci -vnd 8086: | egrep -c "$(INTEL_VENDORID):$(VQAT_DEVICE_NUMBER)"`
 
 #Targets lists
-ALL_TARGETS = qat-driver-all quickassist-all adf-ctl-all qat-service-all adf-rl-all
+ALL_TARGETS = qat-driver-all quickassist-all adf-ctl-all qat-service-all adf-rl-all headers-all
 INSTALL_TARGETS = qat-driver-install quickassist-install adf-ctl-install qat-service-install
 UNINSTALL_TARGETS = qat-driver-uninstall quickassist-uninstall qat-service-uninstall adf-ctl-uninstall sample-uninstall
 CLEAN_TARGETS = qat-driver-clean quickassist-clean adf-ctl-clean qat-service-clean sample-clean adf-rl-clean
@@ -675,6 +677,12 @@ PRINT_ACC_DEVICE_INFO_SH = PrintAccDeviceInfo () {						\
 PRINT_ACC_DEVICE_INFO = $(PRINT_ACC_DEVICE_INFO_SH); PrintAccDeviceInfo
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
+
+headers-all:
+	mkdir -p $(ICP_BUILD_OUTPUT)/include
+	cp -f -r $(QUICKASSIST_DIR)/include/* $(ICP_BUILD_OUTPUT)/include/
+	cp -f -r $(QUICKASSIST_DIR)/include/dc/* $(ICP_BUILD_OUTPUT)/include/
+	cp -f -r $(QUICKASSIST_DIR)/lookaside/access_layer/include/* $(ICP_BUILD_OUTPUT)/include/
 
 .SUFFIXES:
 am--refresh: Makefile
@@ -1201,8 +1209,8 @@ qat-service-install:
 														\
 		if [ "$(ICP_SRIOV_AM)" != "2" ]; then										\
 			if [ "$(num4xxxDevicesP)" -gt "0" ]; then									\
-				$(ICP_ROOT)/generate_conf_files.sh -n $(num4xxxDevicesP) 					\
-					-f $(ICP_BUILD_OUTPUT)/4xxx_template.conf -o $(ICP_BUILD_OUTPUT);			\
+				$(ICP_ROOT)/generate_conf_files.sh -n $(num4xxxDevicesP) -c					\
+					-f $(ICP_BUILD_OUTPUT)/4xxx_template.conf.sym.asym.svm -o $(ICP_BUILD_OUTPUT);			\
 			fi;													\
 			for (( dev=0; dev<$(num4xxxDevicesP); dev++ ))								\
 			do													\
