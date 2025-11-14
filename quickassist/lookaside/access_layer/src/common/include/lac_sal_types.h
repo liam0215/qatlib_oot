@@ -278,7 +278,14 @@ typedef struct sal_service_debug_s
         pGenericService = (sal_service_t *)pService;                           \
         if (!(service_type & pGenericService->type))                           \
         {                                                                      \
-            LAC_LOG_ERROR("The instance handle is the wrong type");            \
+            (void)LAC_OSAL_LOG(                                                        \
+                        OSAL_LOG_LVL_ERROR,                                                    \
+                        OSAL_LOG_DEV_STDERR,                                                   \
+                        "%s() - : The instance handle is the wrong type. "                     \
+                        "Expected mask: 0x%X, Actual: 0x%X\n",                                  \
+                        __func__,                                                              \
+                        (unsigned int)(service_type),                                          \
+                        (unsigned int)(pGenericService->type));                                \
             return CPA_STATUS_FAIL;                                            \
         }                                                                      \
     } while (0)
