@@ -59,12 +59,24 @@ OUTPUT_NAME=user
 SOURCES=sal_user.c
 SOURCES += sal_user_sla.c
 SOURCES += sal_user_tl.c
+ifndef ICP_DC_ONLY
+SOURCES += ../sample_code/functional/common/cpa_sample_utils.c
+SOURCES += ../sample_code/functional/asym/eddsa_sample/cpa_eddsa_sample.c
+SOURCES += ../sample_code/functional/asym/eddsa_sample/cpa_big_num.c
+SOURCES += ../sample_code/functional/asym/eddsa_sample/cpa_ed_point_operations.c
+endif
 
 #common includes between all supported OSes
 INCLUDES+=-I$(ADF_DIR)/include \
           -I$(LAC_DIR)/src/common/include \
           -I$(LAC_DIR)/src/common/compression/include \
           -I$(QAT_DIRECT_ROOT)/src/include
+ifndef ICP_DC_ONLY
+INCLUDES+=\
+          -I$(LAC_DIR)/src/sample_code/functional/include \
+          -I$(LAC_DIR)/src/sample_code/performance/common \
+          -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
+endif
 
 #include your $(ICP_OS)_$(ICP_OS_LEVEL).mk file
 include $(ICP_ENV_DIR)/$(ICP_OS)_$(ICP_OS_LEVEL).mk
@@ -82,6 +94,9 @@ endif
 
 ifeq ($(ICP_OS_LEVEL),user_space)
 EXTRA_CFLAGS += -DUSER_SPACE
+ifndef ICP_DC_ONLY
+EXTRA_CFLAGS += -DDO_CRYPTO
+endif
 else
 EXTRA_CFLAGS += -DKERNEL_SPACE
 endif

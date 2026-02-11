@@ -683,6 +683,7 @@ headers-all:
 	cp -f -r $(QUICKASSIST_DIR)/include/* $(ICP_BUILD_OUTPUT)/include/
 	cp -f -r $(QUICKASSIST_DIR)/include/dc/* $(ICP_BUILD_OUTPUT)/include/
 	cp -f -r $(QUICKASSIST_DIR)/lookaside/access_layer/include/* $(ICP_BUILD_OUTPUT)/include/
+	cp -f $(QUICKASSIST_DIR)/lookaside/access_layer/src/sample_code/functional/asym/eddsa_sample/cpa_eddsa_sample.h $(ICP_BUILD_OUTPUT)/include/
 
 .SUFFIXES:
 am--refresh: Makefile

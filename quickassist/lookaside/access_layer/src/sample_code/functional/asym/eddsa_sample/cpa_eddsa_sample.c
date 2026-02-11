@@ -2,9 +2,34 @@
  *****************************************************************************
  *
  *
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ *   redistributing this file, you may do so under either license.
+ * 
+ *   GPL LICENSE SUMMARY
+ * 
+ *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ * 
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of version 2 of the GNU General Public License as
+ *   published by the Free Software Foundation.
+ * 
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *   General Public License for more details.
+ * 
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *   The full GNU General Public License is included in this distribution
+ *   in the file called LICENSE.GPL.
+ * 
+ *   Contact Information:
+ *   Intel Corporation
+ * 
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -33,7 +58,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ * 
  *
  *
  ***************************************************************************/
@@ -50,11 +75,18 @@
  *****************************************************************************/
 
 #include "cpa_eddsa_sample.h"
+#include "cpa.h"
+#include "cpa_sample_utils.h"
+#include "cpa_types.h"
+#include "icp_sal_poll.h"
+#include "lac_sal_types_crypto.h"
+#include "lac_sync.h"
+#include <semaphore.h>
+#include <stdint.h>
 
 #if CY_API_VERSION_AT_LEAST(2, 3)
 
-extern int gDebugParam;
-CpaInstanceHandle cyInstHandle; /* Instance handle used in point multiply */
+int gDebugParam = 0;
 
 /* Order of Edwards 25519 curve */
 static Cpa8U order[32] = {0xED, 0xD3, 0xF5, 0x5C, 0x1A, 0x63, 0x12, 0x58,
@@ -150,6 +182,43 @@ CpaStatus copyToFlatBuffer(CpaFlatBuffer *fb, Cpa8U *input, Cpa32U inputLen)
     return status;
 }
 
+__attribute__((noinline))
+CpaStatus pollForCompletion(CpaInstanceHandle cyInstHandle, lac_sync_op_data_t *pSyncCallbackData,
+                            CpaBoolean *multiplyStatus) {
+    CpaStatus opStatus = CPA_STATUS_FAIL;
+    CpaStatus status = LacSync_CheckForCallback(pSyncCallbackData, &opStatus,
+                                    multiplyStatus);
+    while (status == CPA_STATUS_RETRY) {
+      icp_sal_CyPollInstance(cyInstHandle, 0);
+      status =
+          LacSync_CheckForCallback(pSyncCallbackData, &opStatus, multiplyStatus);
+    }
+
+    if (CPA_STATUS_SUCCESS == status) {
+      return opStatus;
+    } else {
+      return status;
+    }
+}
+
+static void BuffToConcate(Cpa8U **ptr,
+                                    Cpa8U *pBuff,
+                                    Cpa32U len,
+                                    Cpa32U byteAlign)
+{
+    Cpa8U *pMem = NULL;
+
+    pMem = (Cpa8U *)*ptr;
+    if (((Cpa64U)pMem) % byteAlign != 0)
+    {
+        pMem = (Cpa8U *)(((Cpa64U)pMem + byteAlign - 1) / byteAlign * byteAlign);
+    }
+    memcpy_reverse(pMem, pBuff, len);
+    pMem = pMem + len;
+
+    *ptr = pMem;
+}
+
 /*****************************************************************************
  * @description
  *     This function performs scalar multiplication of a point on Edwards 25519
@@ -171,106 +240,185 @@ CpaStatus copyToFlatBuffer(CpaFlatBuffer *fb, Cpa8U *input, Cpa32U inputLen)
  * @retval CPA_STATUS_FAIL          Function failed.
  *
  *****************************************************************************/
-static CpaStatus pointMuliplication(Cpa8U *pPointX,
+CpaStatus pointMultiplication(Cpa8U *pPointX,
                                     Cpa8U *pPointY,
                                     Cpa8U *pScalar,
                                     Cpa8U *pGenPointX,
-                                    Cpa8U *pGenPointY)
+                                    Cpa8U *pGenPointY,
+                                    CpaInstanceHandle cyInstHandle,
+                                    CpaBoolean generator)
 {
-    CpaStatus status = CPA_STATUS_SUCCESS;
-    CpaBoolean multiplyStatus = CPA_TRUE;
-    CpaCyEcMontEdwdsPointMultiplyOpData *pOpData = NULL;
-    CpaFlatBuffer *pGenX = NULL;
-    CpaFlatBuffer *pGenY = NULL;
+  // uint64_t t0 = sampleCodeTimestamp();
+  CpaStatus status = CPA_STATUS_SUCCESS;
+  CpaBoolean multiplyStatus = CPA_TRUE;
+  CpaCyEcMontEdwdsPointMultiplyOpData *pOpData = NULL;
+  CpaFlatBuffer *pGenX = NULL;
+  CpaFlatBuffer *pGenY = NULL;
+  lac_sync_op_data_t *pSyncCallbackData = NULL;
+  sal_crypto_service_t *pCryptoService = NULL;
+  Cpa8U *pMemPoolConcate = NULL;
+  Cpa8U *pConcateTemp = NULL;
 
-    /* Allocate output flat buffers */
-    status = OS_MALLOC(&pGenX, sizeof(CpaFlatBuffer));
-    status |= OS_MALLOC(&pGenY, sizeof(CpaFlatBuffer));
+  pCryptoService = (sal_crypto_service_t *)cyInstHandle;
+
+  /* Allocate output flat buffers */
+  status = OS_MALLOC(&pGenX, sizeof(CpaFlatBuffer));
+  if (CPA_STATUS_SUCCESS != status)
+    PRINT_ERR("Failed to allocate memory for pGenX\n");
+  else {
+    pGenX->pData = NULL;
+    pGenX->dataLenInBytes = DATA_LEN;
+  }
+  status = OS_MALLOC(&pGenY, sizeof(CpaFlatBuffer));
+  if (CPA_STATUS_SUCCESS != status)
+    PRINT_ERR("Failed to allocate memory for pGenY\n");
+  else {
+    pGenY->pData = NULL;
+    pGenY->dataLenInBytes = DATA_LEN;
+  }
+
+  do {
+    pMemPoolConcate =
+        (Cpa8U *)Lac_MemPoolEntryAlloc(pCryptoService->lac_ec_pool);
+    if (NULL == pMemPoolConcate) {
+      PRINT_ERR("Cannot get mem pool entry");
+      status = CPA_STATUS_RESOURCE;
+    } else if ((void *)CPA_STATUS_RETRY == pMemPoolConcate) {
+      osalYield();
+    }
+  } while ((void *)CPA_STATUS_RETRY == pMemPoolConcate);
+
+  /* Alloc data for output buffers */
+  // if (CPA_STATUS_SUCCESS == status) {
+  //   status = PHYS_CONTIG_ALLOC_ALIGNED(&pGenX->pData, pGenX->dataLenInBytes,
+  //                                      BYTE_ALIGNMENT_64);
+  //   status |= PHYS_CONTIG_ALLOC_ALIGNED(&pGenY->pData, pGenY->dataLenInBytes,
+  //                                       BYTE_ALIGNMENT_64);
+  //   if (CPA_STATUS_SUCCESS != status)
+  //     PRINT_ERR("Memory alloc error\n");
+  // }
+
+  /* Alloc and setup opData */
+  if (CPA_STATUS_SUCCESS == status) {
+    status = OS_MALLOC(&pOpData, sizeof(CpaCyEcMontEdwdsPointMultiplyOpData));
     if (CPA_STATUS_SUCCESS != status)
-        PRINT_ERR("Memory alloc error\n");
-    else
-    {
-        pGenY->dataLenInBytes = DATA_LEN;
-        pGenX->dataLenInBytes = DATA_LEN;
+      PRINT_ERR("Memory alloc error\n");
+    else {
+      pOpData->generator = generator;
+      pOpData->curveType = CPA_CY_EC_MONTEDWDS_ED25519_TYPE;
+      pOpData->x.dataLenInBytes = generator == CPA_FALSE ? DATA_LEN : 0;
+      pOpData->y.dataLenInBytes = generator == CPA_FALSE ? DATA_LEN : 0;
+      pOpData->k.dataLenInBytes = DATA_LEN;
     }
+  }
 
-    /* Alloc data for output buffers */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        status = PHYS_CONTIG_ALLOC_ALIGNED(
-            &pGenX->pData, pGenX->dataLenInBytes, BYTE_ALIGNMENT_64);
-        status |= PHYS_CONTIG_ALLOC_ALIGNED(
-            &pGenY->pData, pGenY->dataLenInBytes, BYTE_ALIGNMENT_64);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
+  if (CPA_STATUS_SUCCESS == status) {
+    /* Concatenate k, x, y */
+    pConcateTemp = pMemPoolConcate;
+    if (generator == CPA_FALSE) {
+      BuffToConcate(&pConcateTemp, pPointX, DATA_LEN, BYTE_ALIGNMENT_64);
+      pOpData->x.pData = pConcateTemp - DATA_LEN;
+      BuffToConcate(&pConcateTemp, pPointY, DATA_LEN, BYTE_ALIGNMENT_64);
+      pOpData->y.pData = pConcateTemp - DATA_LEN;
     }
+    BuffToConcate(&pConcateTemp, pScalar,
+                            DATA_LEN, BYTE_ALIGNMENT_64);
+    pOpData->k.pData = pConcateTemp - DATA_LEN;
+    BuffToConcate(&pConcateTemp, pGenPointX, DATA_LEN, BYTE_ALIGNMENT_64);
+    pGenX->pData = pConcateTemp - DATA_LEN;
+    BuffToConcate(&pConcateTemp, pGenPointY, DATA_LEN, BYTE_ALIGNMENT_64);
+    pGenY->pData = pConcateTemp - DATA_LEN;
+  }
 
-    /* Alloc and setup opData */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        status =
-            OS_MALLOC(&pOpData, sizeof(CpaCyEcMontEdwdsPointMultiplyOpData));
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-        else
-        {
-            pOpData->generator = CPA_FALSE;
-            pOpData->curveType = CPA_CY_EC_MONTEDWDS_ED25519_TYPE;
-            pOpData->x.dataLenInBytes = DATA_LEN;
-            pOpData->y.dataLenInBytes = DATA_LEN;
-            pOpData->k.dataLenInBytes = DATA_LEN;
-        }
-    }
+  /* Alloc x y k buffers and copy x y k values */
+  // if (CPA_STATUS_SUCCESS == status) {
+  //   status = PHYS_CONTIG_ALLOC_ALIGNED(
+  //       &pOpData->x.pData, pOpData->x.dataLenInBytes, BYTE_ALIGNMENT_64);
+  //   status |= PHYS_CONTIG_ALLOC_ALIGNED(
+  //       &pOpData->y.pData, pOpData->y.dataLenInBytes, BYTE_ALIGNMENT_64);
+  //   status |= PHYS_CONTIG_ALLOC_ALIGNED(
+  //       &pOpData->k.pData, pOpData->k.dataLenInBytes, BYTE_ALIGNMENT_64);
+  //   if (CPA_STATUS_SUCCESS != status)
+  //     PRINT_ERR("Memory alloc error\n");
+  //   else {
+  //     memcpy_reverse(pOpData->x.pData, pPointX, DATA_LEN);
+  //     memcpy_reverse(pOpData->y.pData, pPointY, DATA_LEN);
+  //     memcpy_reverse(pOpData->k.pData, pScalar, DATA_LEN);
+  //   }
+  // }
 
-    /* Alloc x y k buffers and copy x y k values */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        status = PHYS_CONTIG_ALLOC_ALIGNED(
-            &pOpData->x.pData, pOpData->x.dataLenInBytes, BYTE_ALIGNMENT_64);
-        status |= PHYS_CONTIG_ALLOC_ALIGNED(
-            &pOpData->y.pData, pOpData->y.dataLenInBytes, BYTE_ALIGNMENT_64);
-        status |= PHYS_CONTIG_ALLOC_ALIGNED(
-            &pOpData->k.pData, pOpData->k.dataLenInBytes, BYTE_ALIGNMENT_64);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-        else
-        {
-            memcpy_reverse(pOpData->x.pData, pPointX, DATA_LEN);
-            memcpy_reverse(pOpData->y.pData, pPointY, DATA_LEN);
-            memcpy_reverse(pOpData->k.pData, pScalar, DATA_LEN);
-        }
-    }
+  if (CPA_STATUS_SUCCESS == status) {
+    status = LacSync_CreateSyncCookie(&pSyncCallbackData);
+  }
 
-    /* Perform point multiply */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        PRINT_DBG("cpaCyEcMontEdwdsPointMultiply\n");
-        status = cpaCyEcMontEdwdsPointMultiply(
-            cyInstHandle, NULL, NULL, pOpData, &multiplyStatus, pGenX, pGenY);
-    }
 
-    if (CPA_STATUS_SUCCESS != status)
-        PRINT_ERR("cpaCyEcMontEdwdsPointMultiply failed. (status = %d)\n",
-                  status);
+  /* Perform point multiply */
+  if (CPA_STATUS_SUCCESS == status) {
+    PRINT_DBG("cpaCyEcMontEdwdsPointMultiply\n");
 
-    /* Copy point to output buffer */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        memcpy_reverse(pGenPointX, pGenX->pData, pGenX->dataLenInBytes);
-        memcpy_reverse(pGenPointY, pGenY->pData, pGenY->dataLenInBytes);
-    }
+    // uint64_t t0 = sampleCodeTimestamp();
+    /* Call the asynchronous version of the function
+     * with the generic synchronous callback function as a parameter.
+     */
+    // status =
+    //     cpaCyEcMontEdwdsPointMultiply(cyInstHandle, NULL, NULL, pOpData,
+    //                                   // uint64_t t0 = sampleCodeTimestamp();
+    //                                   &multiplyStatus, pGenX, pGenY);
+    status = cpaCyEcMontEdwdsPointMultiply(
+        cyInstHandle, LacSync_GenDualFlatBufVerifyCb, pSyncCallbackData,
+        pOpData, &multiplyStatus, pGenX, pGenY);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+    osalYield();
+  }
 
-    /* Free memory */
-    PHYS_CONTIG_FREE(pOpData->x.pData);
-    PHYS_CONTIG_FREE(pOpData->y.pData);
-    PHYS_CONTIG_FREE(pOpData->k.pData);
-    PHYS_CONTIG_FREE(pGenX->pData);
-    PHYS_CONTIG_FREE(pGenY->pData);
-    OS_FREE(pOpData);
-    OS_FREE(pGenX);
-    OS_FREE(pGenY);
+  if (CPA_STATUS_SUCCESS == status) {
+    status =
+        pollForCompletion(cyInstHandle, pSyncCallbackData, &multiplyStatus);
+  } else {
+    LacSync_SetSyncCookieComplete(pSyncCallbackData);
+  }
 
-    return status;
+  if (CPA_STATUS_SUCCESS != status)
+    PRINT_ERR("cpaCyEcMontEdwdsPointMultiply failed. (status = %d)\n", status);
+
+  /* Copy point to output buffer */
+  if (CPA_STATUS_SUCCESS == status) {
+    memcpy_reverse(pGenPointX, pGenX->pData, pGenX->dataLenInBytes);
+    memcpy_reverse(pGenPointY, pGenY->pData, pGenY->dataLenInBytes);
+  }
+
+  /* Free memory */
+  // if (NULL != pOpData) {
+  //   PHYS_CONTIG_FREE(pOpData->x.pData);
+  //   PHYS_CONTIG_FREE(pOpData->y.pData);
+  //   PHYS_CONTIG_FREE(pOpData->k.pData);
+  //   OS_FREE(pOpData);
+  // }
+  // if (NULL != pGenX) {
+  //   PHYS_CONTIG_FREE(pGenX->pData);
+  //   OS_FREE(pGenX);
+  // }
+  // if (NULL != pGenY) {
+  //   PHYS_CONTIG_FREE(pGenY->pData);
+  //   OS_FREE(pGenY);
+  // }
+  if (NULL != pMemPoolConcate) {
+    Lac_MemPoolEntryFree(pMemPoolConcate);
+  }
+  if (NULL != pSyncCallbackData)
+    LacSync_DestroySyncCookie(&pSyncCallbackData);
+  // uint64_t t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
+  // uint64_t ops, lat_ns;
+  // metrics_snapshot(&ops, &lat_ns);
+  // if (ops % 5000 == 0 && ops != 0) {
+  //   double avg = (double)lat_ns / (double)ops;
+  //   printf("Average latency: %.2f ns\n", avg);
+  // }
+  return status;
 }
 
 /*****************************************************************************
@@ -285,7 +433,7 @@ static CpaStatus pointMuliplication(Cpa8U *pPointX,
  * @retval CPA_STATUS_FAIL          Function failed.
  *
  *****************************************************************************/
-static CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey)
+CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey, CpaInstanceHandle cyInstHandle)
 {
     CpaStatus status = CPA_STATUS_FAIL;
     Cpa8U s[HASH_LEN] = {0};
@@ -310,7 +458,8 @@ static CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey)
         CLR_BIT(s[DATA_LEN - 1], 7);
 
         /* Perform a fixed-base scalar multiplication [s]B */
-        status = pointMuliplication(Bx, By, s, publicKeyX, publicKeyY);
+        // status = pointMultiplication(Bx, By, s, publicKeyX, publicKeyY, cyInstHandle, CPA_FALSE);
+        status = pointMultiplication(NULL, NULL, s, publicKeyX, publicKeyY, cyInstHandle, CPA_TRUE);
     }
 
     /* The public key A is the encoding of the point [s]B. */
@@ -334,162 +483,162 @@ static CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey)
  * @retval CPA_STATUS_FAIL          Function failed.
  *
  *****************************************************************************/
-static CpaStatus edDsaSign(Cpa8U *privateKey,
-                           Cpa8U *messageHash,
-                           Cpa8U *signature)
-{
-    CpaStatus status = CPA_STATUS_FAIL;
-    Cpa8U *dataToHash = NULL;  /* Pointer to memory used in hash function */
-    CpaFlatBuffer L = {0};     /* Flat buffer to store field order value */
-    Cpa8U *PH_M = messageHash; /* Message hash (sha512) */
-    Cpa8U h[HASH_LEN] = {0};   /* Hash calculated from private key */
-    Cpa8U *prefix = 0;         /* Pointer to prefix value */
-    CpaFlatBuffer k = {0};     /* Flat buffer to store k scalar value */
-    CpaFlatBuffer r = {0};     /* Flat buffer to store r scalar value */
-    CpaFlatBuffer s = {0};     /* Flat buffer to store s scalar value */
-    Cpa8U Ax[DATA_LEN] = {0};  /* A point X coordinate value */
-    Cpa8U Ay[DATA_LEN] = {0};  /* A point Y coordinate value */
-    Cpa8U A[DATA_LEN] = {0};   /* Encoded A point value */
-    Cpa8U Rx[DATA_LEN] = {0};  /* R point X coordinate value */
-    Cpa8U Ry[DATA_LEN] = {0};  /* R point Y coordinate value */
-    Cpa8U R[DATA_LEN] = {0};   /* Encoded R point value */
-    CpaFlatBuffer S = {0};     /* S signature value */
+CpaStatus edDsaSign(Cpa8U *privateKey, Cpa8U *messageHash, Cpa8U *signature,
+                    CpaInstanceHandle cyInstHandle) {
+  // uint64_t t0 = sampleCodeTimestamp();
+  CpaStatus status = CPA_STATUS_FAIL;
+  Cpa8U *dataToHash = NULL;  /* Pointer to memory used in hash function */
+  CpaFlatBuffer L = {0};     /* Flat buffer to store field order value */
+  Cpa8U *PH_M = messageHash; /* Message hash (sha512) */
+  Cpa8U h[HASH_LEN] = {0};   /* Hash calculated from private key */
+  Cpa8U *prefix = 0;         /* Pointer to prefix value */
+  CpaFlatBuffer k = {0};     /* Flat buffer to store k scalar value */
+  CpaFlatBuffer r = {0};     /* Flat buffer to store r scalar value */
+  CpaFlatBuffer s = {0};     /* Flat buffer to store s scalar value */
+  Cpa8U Ax[DATA_LEN] = {0};  /* A point X coordinate value */
+  Cpa8U Ay[DATA_LEN] = {0};  /* A point Y coordinate value */
+  Cpa8U A[DATA_LEN] = {0};   /* Encoded A point value */
+  Cpa8U Rx[DATA_LEN] = {0};  /* R point X coordinate value */
+  Cpa8U Ry[DATA_LEN] = {0};  /* R point Y coordinate value */
+  Cpa8U R[DATA_LEN] = {0};   /* Encoded R point value */
+  CpaFlatBuffer S = {0};     /* S signature value */
 
-    PRINT_DBG("Generate signature\n");
+  PRINT_DBG("Generate signature\n");
 
-    /* Hash the 32-byte private key using SHA-512, storing the digest in
-       a 64-octet large buffer */
-    status = osalHashSHA512Full(privateKey, h, DATA_LEN);
+  /* Hash the 32-byte private key using SHA-512, storing the digest in
+     a 64-octet large buffer */
+  status = osalHashSHA512Full(privateKey, h, DATA_LEN);
 
-    /* s scalar is first part of h */
-    if (CPA_STATUS_SUCCESS == status)
-        status = copyToFlatBuffer(&s, h, DATA_LEN);
+  /* s scalar is first part of h */
+  if (CPA_STATUS_SUCCESS == status)
+    status = copyToFlatBuffer(&s, h, DATA_LEN);
 
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        /* Prune the buffer: The lowest three bits of the first octet are
-         * cleared, the highest bit of the last octet is cleared, and the
-         * second highest bit of the last octet is set */
-        CLR_BIT(s.pData[0], 0);
-        CLR_BIT(s.pData[0], 1);
-        CLR_BIT(s.pData[0], 2);
-        SET_BIT(s.pData[DATA_LEN - 1], 6);
-        CLR_BIT(s.pData[DATA_LEN - 1], 7);
+  if (CPA_STATUS_SUCCESS == status) {
+    /* Prune the buffer: The lowest three bits of the first octet are
+     * cleared, the highest bit of the last octet is cleared, and the
+     * second highest bit of the last octet is set */
+    CLR_BIT(s.pData[0], 0);
+    CLR_BIT(s.pData[0], 1);
+    CLR_BIT(s.pData[0], 2);
+    SET_BIT(s.pData[DATA_LEN - 1], 6);
+    CLR_BIT(s.pData[DATA_LEN - 1], 7);
 
-        /* Perform a fixed-base scalar multiplication [s]B */
-        status = pointMuliplication(Bx, By, s.pData, Ax, Ay);
-    }
+    /* Perform a fixed-base scalar multiplication [s]B */
+    // status = pointMultiplication(Bx, By, s.pData, Ax, Ay, cyInstHandle, CPA_FALSE);
+    status = pointMultiplication(NULL, NULL, s.pData, Ax, Ay, cyInstHandle, CPA_TRUE);
+  }
 
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        /* A is the encoding of the point [s]B. */
-        encodePoint(Ax, Ay, A);
+  if (CPA_STATUS_SUCCESS == status) {
+    /* A is the encoding of the point [s]B. */
+    encodePoint(Ax, Ay, A);
 
-        /* Let prefix denote the second half of the hash digest */
-        prefix = h + DATA_LEN;
+    /* Let prefix denote the second half of the hash digest */
+    prefix = h + DATA_LEN;
 
-        /* Alloc buffer for hash operation */
-        status = OS_MALLOC(&dataToHash, DATA_LEN + HASH_LEN);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-    }
+    /* Alloc buffer for hash operation */
+    status = OS_MALLOC(&dataToHash, DATA_LEN + HASH_LEN);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
 
-    /* Compute SHA-512(prefix || PH(M)), where M is the message to be signed.
-     * Interpret the 64-octet digest as a little-endian integer r. */
+  /* Compute SHA-512(prefix || PH(M)), where M is the message to be signed.
+   * Interpret the 64-octet digest as a little-endian integer r. */
 
-    /* Copy data to buffer */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        memmove(dataToHash, prefix, DATA_LEN);
-        memcpy(dataToHash + DATA_LEN, PH_M, HASH_LEN);
+  /* Copy data to buffer */
+  if (CPA_STATUS_SUCCESS == status) {
+    memmove(dataToHash, prefix, DATA_LEN);
+    memcpy(dataToHash + DATA_LEN, PH_M, HASH_LEN);
 
-        /* Alloc data for output */
-        r.dataLenInBytes = HASH_LEN;
-        status = OS_MALLOC(&r.pData, r.dataLenInBytes);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-    }
+    /* Alloc data for output */
+    r.dataLenInBytes = HASH_LEN;
+    status = OS_MALLOC(&r.pData, r.dataLenInBytes);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
 
-    /* Generate r scalar by performing hash operation */
-    if (CPA_STATUS_SUCCESS == status)
-        status = osalHashSHA512Full(dataToHash, r.pData, DATA_LEN + HASH_LEN);
+  /* Generate r scalar by performing hash operation */
+  if (CPA_STATUS_SUCCESS == status)
+    status = osalHashSHA512Full(dataToHash, r.pData, DATA_LEN + HASH_LEN);
 
-    /* Reduce r % L (field order) */
-    if (CPA_STATUS_SUCCESS == status)
-        status = reduceScalar(&r);
+  /* Reduce r % L (field order) */
+  if (CPA_STATUS_SUCCESS == status)
+    status = reduceScalar(&r);
 
-    /* Compute the point [r]B. */
-    if (CPA_STATUS_SUCCESS == status)
-        status = pointMuliplication(Bx, By, r.pData, Rx, Ry);
+  /* Compute the point [r]B. */
+  if (CPA_STATUS_SUCCESS == status) {
+    // status = pointMultiplication(Bx, By, r.pData, Rx, Ry, cyInstHandle,
+    // CPA_FALSE);
+    status =
+        pointMultiplication(NULL, NULL, r.pData, Rx, Ry, cyInstHandle, CPA_TRUE);
+  }
 
-    /* Let the R be the encoding of this point. */
-    if (CPA_STATUS_SUCCESS == status)
-        encodePoint(Rx, Ry, R);
+  /* Let the R be the encoding of this point. */
+  if (CPA_STATUS_SUCCESS == status)
+    encodePoint(Rx, Ry, R);
 
-    /* Compute SHA512(R || A || PH(M)), and interpret the 64-octet
-     * digest as a little-endian integer k. */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        OS_FREE(dataToHash);
-        status = OS_MALLOC(&dataToHash, sizeof(R) + sizeof(A) + HASH_LEN);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-    }
-
-    /* Copy R, A, PH_M to buffer for hash operation */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        memcpy(dataToHash, R, sizeof(R));
-        memcpy(dataToHash + sizeof(R), A, sizeof(A));
-        memcpy(dataToHash + sizeof(R) + sizeof(A), PH_M, HASH_LEN);
-
-        k.dataLenInBytes = HASH_LEN;
-        status = OS_MALLOC(&k.pData, k.dataLenInBytes);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-    }
-
-    /* Generate k scalar by performing hash operation */
-    if (CPA_STATUS_SUCCESS == status)
-        status = osalHashSHA512Full(
-            dataToHash, k.pData, sizeof(R) + sizeof(A) + HASH_LEN);
-
-    /* Reduce k % L (field order) */
-    if (CPA_STATUS_SUCCESS == status)
-        status = reduceScalar(&k);
-
-    /* Compute S = (r + k * s) % L. */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        /* Prepare L value */
-        status = copyToFlatBuffer(&L, order, sizeof(order));
-
-        if (CPA_STATUS_SUCCESS == status)
-        {
-            status = bigNumModMul(&S, &k, &s, &L);  /* S = k * s % L */
-            status |= bigNumModAdd(&S, &S, &r, &L); /* S = S + r % L */
-        }
-    }
-
-    /* Form the signature of the concatenation of R (32 octets) and the
-     * little-endian encoding of S (32 octets; the three most significant bits
-     * of the final octet are always zero). */
-
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        memcpy(signature, R, sizeof(R));
-        memcpy(signature + DATA_LEN, S.pData, S.dataLenInBytes);
-    }
-
-    /* Free memory */
+  /* Compute SHA512(R || A || PH(M)), and interpret the 64-octet
+   * digest as a little-endian integer k. */
+  if (CPA_STATUS_SUCCESS == status) {
     OS_FREE(dataToHash);
-    OS_FREE(L.pData);
-    OS_FREE(S.pData);
-    OS_FREE(k.pData);
-    OS_FREE(r.pData);
-    OS_FREE(s.pData);
+    status = OS_MALLOC(&dataToHash, sizeof(R) + sizeof(A) + HASH_LEN);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
 
-    return status;
+  /* Copy R, A, PH_M to buffer for hash operation */
+  if (CPA_STATUS_SUCCESS == status) {
+    memcpy(dataToHash, R, sizeof(R));
+    memcpy(dataToHash + sizeof(R), A, sizeof(A));
+    memcpy(dataToHash + sizeof(R) + sizeof(A), PH_M, HASH_LEN);
+
+    k.dataLenInBytes = HASH_LEN;
+    status = OS_MALLOC(&k.pData, k.dataLenInBytes);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
+
+  /* Generate k scalar by performing hash operation */
+  if (CPA_STATUS_SUCCESS == status)
+    status = osalHashSHA512Full(dataToHash, k.pData,
+                                sizeof(R) + sizeof(A) + HASH_LEN);
+
+  /* Reduce k % L (field order) */
+  if (CPA_STATUS_SUCCESS == status)
+    status = reduceScalar(&k);
+
+  /* Compute S = (r + k * s) % L. */
+  if (CPA_STATUS_SUCCESS == status) {
+    /* Prepare L value */
+    status = copyToFlatBuffer(&L, order, sizeof(order));
+
+    if (CPA_STATUS_SUCCESS == status) {
+      status = bigNumModMul(&S, &k, &s, &L);  /* S = k * s % L */
+      status |= bigNumModAdd(&S, &S, &r, &L); /* S = S + r % L */
+    }
+  }
+
+  /* Form the signature of the concatenation of R (32 octets) and the
+   * little-endian encoding of S (32 octets; the three most significant bits
+   * of the final octet are always zero). */
+
+  if (CPA_STATUS_SUCCESS == status) {
+    memcpy(signature, R, sizeof(R));
+    memcpy(signature + DATA_LEN, S.pData, S.dataLenInBytes);
+  }
+
+  /* Free memory */
+  OS_FREE(dataToHash);
+  OS_FREE(L.pData);
+  OS_FREE(S.pData);
+  OS_FREE(k.pData);
+  OS_FREE(r.pData);
+  OS_FREE(s.pData);
+
+  // uint64_t t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
+  // double avg = metrics_avg_latency_ns();
+  // printf("Average latency: %.2f ns\n", avg);
+  return status;
 }
 
 /*****************************************************************************
@@ -505,104 +654,145 @@ static CpaStatus edDsaSign(Cpa8U *privateKey,
  * @retval CPA_STATUS_FAIL          Signature verification failed
  *
  *****************************************************************************/
-static CpaStatus edDsaVerify(Cpa8U *publicKey,
-                             Cpa8U *messageHash,
-                             Cpa8U *signature)
-{
+CpaStatus edDsaVerify(Cpa8U *publicKey, Cpa8U *messageHash, Cpa8U *signature,
+                      CpaInstanceHandle cyInstHandle) {
+  // uint64_t t0 = sampleCodeTimestamp();
+  CpaStatus status = CPA_STATUS_FAIL;
+  Cpa8U *dataToHash = NULL;        /* Pointer to data used in hash function */
+  CpaFlatBuffer k = {0};           /* Flat buffer to store k scalar value */
+  Cpa8U *PH_M = messageHash;       /* Hash form message (sha512) */
+  Cpa8U *S = signature + DATA_LEN; /* S signature scalar value */
+  Cpa8U *R = signature;            /* Encoded R point value */
+  Cpa8U *A = publicKey;            /* Encoded A point value */
+  Cpa8U Ax[DATA_LEN] = {0};        /* A point X coordinate value */
+  Cpa8U Ay[DATA_LEN] = {0};        /* A point Y coordinate value */
+  Cpa8U Rx[DATA_LEN] = {0};        /* R point X coordinate value */
+  Cpa8U Ry[DATA_LEN] = {0};        /* R point Y coordinate value */
+  Cpa8U V1x[DATA_LEN] = {0};       /* Verification point 1 X coordinate value */
+  Cpa8U V1y[DATA_LEN] = {0};       /* Verification point 1 Y coordinate value */
+  Cpa8U V2x[DATA_LEN] = {0};       /* Verification point 2 X coordinate value */
+  Cpa8U V2y[DATA_LEN] = {0};       /* Verification point 2 Y coordinate value */
 
-    CpaStatus status = CPA_STATUS_FAIL;
-    Cpa8U *dataToHash = NULL;        /* Pointer to data used in hash function */
-    CpaFlatBuffer k = {0};           /* Flat buffer to store k scalar value */
-    Cpa8U *PH_M = messageHash;       /* Hash form message (sha512) */
-    Cpa8U *S = signature + DATA_LEN; /* S signature scalar value */
-    Cpa8U *R = signature;            /* Encoded R point value */
-    Cpa8U *A = publicKey;            /* Encoded A point value */
-    Cpa8U Ax[DATA_LEN] = {0};        /* A point X coordinate value */
-    Cpa8U Ay[DATA_LEN] = {0};        /* A point Y coordinate value */
-    Cpa8U Rx[DATA_LEN] = {0};        /* R point X coordinate value */
-    Cpa8U Ry[DATA_LEN] = {0};        /* R point Y coordinate value */
-    Cpa8U V1x[DATA_LEN] = {0}; /* Verification point 1 X coordinate value */
-    Cpa8U V1y[DATA_LEN] = {0}; /* Verification point 1 Y coordinate value */
-    Cpa8U V2x[DATA_LEN] = {0}; /* Verification point 2 X coordinate value */
-    Cpa8U V2y[DATA_LEN] = {0}; /* Verification point 2 Y coordinate value */
+  PRINT_DBG("Verify signature\n");
 
-    PRINT_DBG("Verify signature\n");
+  /* Split the signature into two 32-octet halfes. Decode the first half as a
+   * point R, and the second half as an integer S, in the range 0 <= s < L.
+   * Decode the public key A */
 
-    /* Split the signature into two 32-octet halfes. Decode the first half as a
-     * point R, and the second half as an integer S, in the range 0 <= s < L.
-     * Decode the public key A */
+  /* Decode R point */
+  // uint64_t t0 = sampleCodeTimestamp();
+  status = decodePoint(R, Rx, Ry);
+  // uint64_t t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
 
-    /* Decode R point */
-    status = decodePoint(R, Rx, Ry);
+  // t0 = sampleCodeTimestamp();
+  /* Decode A point */
+  if (CPA_STATUS_SUCCESS == status)
+    status = decodePoint(A, Ax, Ay);
+  // t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
+  // double avg = metrics_avg_latency_ns();
+  // printf("Average latency: %.2f ns\n", avg);
 
-    /* Decode A point */
-    if (CPA_STATUS_SUCCESS == status)
-        status = decodePoint(A, Ax, Ay);
+  // uint64_t t0 = sampleCodeTimestamp();
+  /* Compute SHA512(R || A || PH(M)), and interpret the 64-octet digest as a
+   * little-endian integer k. */
+  if (CPA_STATUS_SUCCESS == status) {
+    status = OS_MALLOC(&dataToHash, (DATA_LEN * 2) + HASH_LEN);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
 
-    /* Compute SHA512(R || A || PH(M)), and interpret the 64-octet digest as a
-     * little-endian integer k. */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        status = OS_MALLOC(&dataToHash, (DATA_LEN * 2) + HASH_LEN);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
+  /* Copy data for hash function */
+  if (CPA_STATUS_SUCCESS == status) {
+    memcpy(dataToHash, R, DATA_LEN);
+    memcpy(dataToHash + DATA_LEN, A, DATA_LEN);
+    memcpy(dataToHash + (DATA_LEN * 2), PH_M, HASH_LEN);
+
+    /* Alloc output buffer */
+    k.dataLenInBytes = HASH_LEN;
+    status = OS_MALLOC(&k.pData, k.dataLenInBytes);
+    if (CPA_STATUS_SUCCESS != status)
+      PRINT_ERR("Memory alloc error\n");
+  }
+  // uint64_t t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
+  // double avg = metrics_avg_latency_ns();
+  // printf("Average latency: %.2f ns\n", avg);
+
+  /* Generate k scalar by performing hash operation */
+  if (CPA_STATUS_SUCCESS == status) {
+    // uint64_t t0 = sampleCodeTimestamp();
+    status = osalHashSHA512Full(dataToHash, k.pData, (DATA_LEN * 2) + HASH_LEN);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+  }
+
+  /* Reduce k % field order */
+  if (CPA_STATUS_SUCCESS == status) {
+    // uint64_t t0 = sampleCodeTimestamp();
+    status = reduceScalar(&k);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+  }
+
+  /* Check the group equation [8][S]B = [8]R + [8][k]A'.  It's
+   * sufficient, but not required, to instead check [S]B = R + [k]A'. */
+
+  /* Compute verification point 1, V1  = [S]B */
+  if (CPA_STATUS_SUCCESS == status) {
+    // uint64_t t0 = sampleCodeTimestamp();
+    // status = pointMultiplication(Bx, By, S, V1x, V1y, cyInstHandle, CPA_FALSE);
+    status = pointMultiplication(NULL, NULL, S, V1x, V1y, cyInstHandle, CPA_TRUE);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+  }
+
+  /* Compute verification point 2, V2 = R + [k]A */
+
+  /* Compute the point [k]A */
+  if (CPA_STATUS_SUCCESS == status) {
+    // uint64_t t0 = sampleCodeTimestamp();
+    status = pointMultiplication(Ax, Ay, k.pData, Ax, Ay, cyInstHandle, CPA_FALSE);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+  }
+
+  /* Perform point addition V2 = R + [k]A */
+  if (CPA_STATUS_SUCCESS == status) {
+    // uint64_t t0 = sampleCodeTimestamp();
+    status = addPoints(Rx, Ry, Ax, Ay, V2x, V2y);
+    // uint64_t t1 = sampleCodeTimestamp();
+    // metrics_record_ns((t1 - t0) / 2);
+    // double avg = metrics_avg_latency_ns();
+    // printf("Average latency: %.2f ns\n", avg);
+  }
+
+  /* Check if V1 = V2, [S]B = R + [k]A */
+  if (CPA_STATUS_SUCCESS == status) {
+    if (memcmp(V1x, V2x, DATA_LEN) || memcmp(V1y, V2y, DATA_LEN)) {
+      status = CPA_STATUS_FAIL;
+      PRINT_ERR("Verification points do not match\n");
     }
+  }
 
-    /* Copy data for hash function */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        memcpy(dataToHash, R, DATA_LEN);
-        memcpy(dataToHash + DATA_LEN, A, DATA_LEN);
-        memcpy(dataToHash + (DATA_LEN * 2), PH_M, HASH_LEN);
+  /* Free memory */
+  OS_FREE(dataToHash);
+  OS_FREE(k.pData);
 
-        /* Alloc output buffer */
-        k.dataLenInBytes = HASH_LEN;
-        status = OS_MALLOC(&k.pData, k.dataLenInBytes);
-        if (CPA_STATUS_SUCCESS != status)
-            PRINT_ERR("Memory alloc error\n");
-    }
-
-    /* Generate k scalar by performing hash operation */
-    if (CPA_STATUS_SUCCESS == status)
-        status =
-            osalHashSHA512Full(dataToHash, k.pData, (DATA_LEN * 2) + HASH_LEN);
-
-    /* Reduce k % field order */
-    if (CPA_STATUS_SUCCESS == status)
-        status = reduceScalar(&k);
-
-    /* Check the group equation [8][S]B = [8]R + [8][k]A'.  It's
-     * sufficient, but not required, to instead check [S]B = R + [k]A'. */
-
-    /* Compute verification point 1, V1  = [S]B */
-    if (CPA_STATUS_SUCCESS == status)
-        status = pointMuliplication(Bx, By, S, V1x, V1y);
-
-    /* Compute verification point 2, V2 = R + [k]A */
-
-    /* Compute the point [k]A */
-    if (CPA_STATUS_SUCCESS == status)
-        status = pointMuliplication(Ax, Ay, k.pData, Ax, Ay);
-
-    /* Perform point addition V2 = R + [k]A */
-    if (CPA_STATUS_SUCCESS == status)
-        status = addPoints(Rx, Ry, Ax, Ay, V2x, V2y);
-
-    /* Check if V1 = V2, [S]B = R + [k]A */
-    if (CPA_STATUS_SUCCESS == status)
-    {
-        if (memcmp(V1x, V2x, DATA_LEN) || memcmp(V1y, V2y, DATA_LEN))
-        {
-            status = CPA_STATUS_FAIL;
-            PRINT_ERR("Verification points do not match\n");
-        }
-    }
-
-    /* Free memory */
-    OS_FREE(dataToHash);
-    OS_FREE(k.pData);
-
-    return status;
+  // uint64_t t1 = sampleCodeTimestamp();
+  // metrics_record_ns((t1 - t0) / 2);
+  // double avg = metrics_avg_latency_ns();
+  // printf("Average latency: %.2f ns\n", avg);
+  return status;
 }
 
 /*****************************************************************************
@@ -614,7 +804,7 @@ static CpaStatus edDsaVerify(Cpa8U *publicKey,
  * @retval CPA_STATUS_FAIL          Sign and verify failed.
  *
  *****************************************************************************/
-CpaStatus ecMontEdwdsDsaPerform(void)
+CpaStatus ecMontEdwdsDsaPerform(CpaInstanceHandle cyInstHandle)
 {
     CpaStatus status = CPA_STATUS_FAIL;
     Cpa8U messageHash[HASH_LEN] = {0};   /* Buffer for hash from message */
@@ -638,7 +828,7 @@ CpaStatus ecMontEdwdsDsaPerform(void)
     /* Generate public key */
     if (CPA_STATUS_SUCCESS == status)
     {
-        status = edDsaGenPubKey(privateKey, publicKey);
+        status = edDsaGenPubKey(privateKey, publicKey, cyInstHandle);
         if (CPA_STATUS_SUCCESS != status)
             PRINT_ERR("Public key generation failed\n");
         else
@@ -648,7 +838,7 @@ CpaStatus ecMontEdwdsDsaPerform(void)
     /* Sign message */
     if (CPA_STATUS_SUCCESS == status)
     {
-        status = edDsaSign(privateKey, messageHash, signature);
+        status = edDsaSign(privateKey, messageHash, signature, cyInstHandle);
         if (CPA_STATUS_SUCCESS != status)
             PRINT_ERR("Signature generation failed\n");
         else
@@ -658,7 +848,7 @@ CpaStatus ecMontEdwdsDsaPerform(void)
     /* Verify sign */
     if (CPA_STATUS_SUCCESS == status)
     {
-        status = edDsaVerify(publicKey, messageHash, signature);
+        status = edDsaVerify(publicKey, messageHash, signature, cyInstHandle);
         if (CPA_STATUS_SUCCESS != status)
             PRINT_ERR("Signature verification failed\n");
         else
@@ -682,6 +872,7 @@ CpaStatus ecMontEdwdsDsaSample(void)
     CpaStatus status = CPA_STATUS_FAIL;
 
     /* Get instance handle */
+    CpaInstanceHandle cyInstHandle;
     sampleAsymGetInstance(&cyInstHandle);
     if (cyInstHandle == NULL)
         return CPA_STATUS_FAIL;
@@ -704,7 +895,7 @@ CpaStatus ecMontEdwdsDsaSample(void)
     sampleCyStartPolling(cyInstHandle);
 
     /* Perform sign and verify */
-    status = ecMontEdwdsDsaPerform();
+    status = ecMontEdwdsDsaPerform(cyInstHandle);
 
     /* Stop the polling thread */
     sampleCyStopPolling();

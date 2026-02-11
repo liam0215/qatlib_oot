@@ -86,6 +86,11 @@ ifneq ($(PREBUILD_BINS),0)
 		-I$(ICP_API_DIR)lac \
 		-I$(ICP_API_DIR)dc \
 		-I$(ICP_LAC_DIR)include \
+		-I$(ICP_LAC_DIR)src/common/include \
+		-I$(ICP_LAC_DIR)src/common/crypto/sym/include \
+		-I$(ICP_LAC_DIR)../firmware/include \
+		-I$(ICP_LAC_DIR)src/qat_direct/include \
+		-I$(ICP_ROOT)/quickassist/qat/drivers/crypto/qat/qat_common \
 		-I$(SAMPLE_PATH)include
 else
     INCLUDES += -I$(SAMPLE_PATH)include \

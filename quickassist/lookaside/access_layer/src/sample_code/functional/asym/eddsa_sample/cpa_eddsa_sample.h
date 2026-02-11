@@ -2,9 +2,34 @@
  *****************************************************************************
  *
  *
+ * This file is provided under a dual BSD/GPLv2 license.  When using or
+ *   redistributing this file, you may do so under either license.
+ * 
+ *   GPL LICENSE SUMMARY
+ * 
+ *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
+ * 
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of version 2 of the GNU General Public License as
+ *   published by the Free Software Foundation.
+ * 
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *   General Public License for more details.
+ * 
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software
+ *   Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+ *   The full GNU General Public License is included in this distribution
+ *   in the file called LICENSE.GPL.
+ * 
+ *   Contact Information:
+ *   Intel Corporation
+ * 
  *   BSD LICENSE
  * 
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2022 Intel Corporation. All rights reserved.
  *   All rights reserved.
  * 
  *   Redistribution and use in source and binary forms, with or without
@@ -33,7 +58,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ * 
  *
  *
  ***************************************************************************/
@@ -92,6 +117,16 @@ void memcpy_reverse(Cpa8U *dest, Cpa8U *src, Cpa32U src_len);
  *
  *****************************************************************************/
 CpaStatus copyToFlatBuffer(CpaFlatBuffer *fb, Cpa8U *input, Cpa32U inputLen);
+
+CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey, CpaInstanceHandle cyInstHandle);
+
+CpaStatus edDsaSign(Cpa8U *privateKey, Cpa8U *messageHash, Cpa8U *signature, CpaInstanceHandle cyInstHandle);
+
+CpaStatus edDsaVerify(Cpa8U *publicKey, Cpa8U *messageHash, Cpa8U *signature, CpaInstanceHandle cyInstHandle);
+
+CpaStatus pointMultiplication(Cpa8U *pPointX, Cpa8U *pPointY, Cpa8U *pScalar,
+                              Cpa8U *pGenPointX, Cpa8U *pGenPointY,
+                              CpaInstanceHandle cyInstHandle, CpaBoolean generator);
 
 #endif /* CY_API_VERSION_AT_LEAST(2, 3) */
 #endif
