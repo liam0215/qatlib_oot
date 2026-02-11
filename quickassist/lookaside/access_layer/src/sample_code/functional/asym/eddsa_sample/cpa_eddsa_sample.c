@@ -78,6 +78,7 @@
 #include "cpa.h"
 #include "cpa_sample_utils.h"
 #include "cpa_types.h"
+#include "icp_accel_devices.h"
 #include "icp_sal_poll.h"
 #include "lac_sal_types_crypto.h"
 #include "lac_sync.h"
@@ -451,11 +452,11 @@ CpaStatus edDsaGenPubKey(Cpa8U *privateKey, Cpa8U *publicKey, CpaInstanceHandle 
      * second highest bit of the last octet is set */
     if (CPA_STATUS_SUCCESS == status)
     {
-        CLR_BIT(s[0], 0);
-        CLR_BIT(s[0], 1);
-        CLR_BIT(s[0], 2);
-        SET_BIT(s[DATA_LEN - 1], 6);
-        CLR_BIT(s[DATA_LEN - 1], 7);
+        EDDSA_CLR_BIT(s[0], 0);
+        EDDSA_CLR_BIT(s[0], 1);
+        EDDSA_CLR_BIT(s[0], 2);
+        EDDSA_SET_BIT(s[DATA_LEN - 1], 6);
+        EDDSA_CLR_BIT(s[DATA_LEN - 1], 7);
 
         /* Perform a fixed-base scalar multiplication [s]B */
         // status = pointMultiplication(Bx, By, s, publicKeyX, publicKeyY, cyInstHandle, CPA_FALSE);
@@ -517,11 +518,11 @@ CpaStatus edDsaSign(Cpa8U *privateKey, Cpa8U *messageHash, Cpa8U *signature,
     /* Prune the buffer: The lowest three bits of the first octet are
      * cleared, the highest bit of the last octet is cleared, and the
      * second highest bit of the last octet is set */
-    CLR_BIT(s.pData[0], 0);
-    CLR_BIT(s.pData[0], 1);
-    CLR_BIT(s.pData[0], 2);
-    SET_BIT(s.pData[DATA_LEN - 1], 6);
-    CLR_BIT(s.pData[DATA_LEN - 1], 7);
+    EDDSA_CLR_BIT(s.pData[0], 0);
+    EDDSA_CLR_BIT(s.pData[0], 1);
+    EDDSA_CLR_BIT(s.pData[0], 2);
+    EDDSA_SET_BIT(s.pData[DATA_LEN - 1], 6);
+    EDDSA_CLR_BIT(s.pData[DATA_LEN - 1], 7);
 
     /* Perform a fixed-base scalar multiplication [s]B */
     // status = pointMultiplication(Bx, By, s.pData, Ax, Ay, cyInstHandle, CPA_FALSE);

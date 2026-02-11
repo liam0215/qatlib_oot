@@ -85,9 +85,9 @@
 #define DATA_LEN (32)
 #define HASH_LEN (64)
 
-#define SET_BIT(byte, bit) ((byte) |= (1 << (bit)))
-#define CLR_BIT(byte, bit) ((byte) &= ~((1) << (bit)))
-#define CHK_BIT(byte, bit) (!!((byte) & (1 << (bit))))
+#define EDDSA_SET_BIT(byte, bit) ((byte) |= (1u << (bit)))
+#define EDDSA_CLR_BIT(byte, bit) ((byte) &= ~((Cpa8U)(1u << (bit))))
+#define EDDSA_CHK_BIT(byte, bit) (!!((byte) & (1u << (bit))))
 
 #if CY_API_VERSION_AT_LEAST(2, 3)
 
