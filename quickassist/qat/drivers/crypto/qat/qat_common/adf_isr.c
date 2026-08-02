@@ -402,17 +402,25 @@ int adf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 	if (ret)
 		return ret;
 	if (adf_enable_msix(accel_dev))
-		goto err_out;
+		goto free_msix;
 
 	if (adf_setup_bh(accel_dev))
-		goto err_out;
+		goto disable_msix;
 
 	if (adf_request_irqs(accel_dev))
-		goto err_out;
+		goto cleanup_bh;
 
 	return 0;
-err_out:
-	adf_isr_resource_free(accel_dev);
+
+cleanup_bh:
+	adf_cleanup_bh(accel_dev);
+
+disable_msix:
+	adf_disable_msix(&accel_dev->accel_pci_dev);
+
+free_msix:
+	adf_isr_free_msix_entry_table(accel_dev);
+
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);

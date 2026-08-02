@@ -176,7 +176,11 @@ EXPORT_SYMBOL_GPL(adf_gen4_int_timer_init);
 void adf_gen4_int_timer_exit(struct adf_accel_dev *accel_dev)
 {
 	if (accel_dev && accel_dev->int_timer) {
+#if (KERNEL_VERSION(6, 14, 0) >= LINUX_VERSION_CODE)
 		del_timer_sync(&accel_dev->int_timer->timer);
+#else
+		timer_delete_sync(&accel_dev->int_timer->timer);
+#endif
 		atomic_set(&accel_dev->int_timer->timer_bh_state,
 			   TIMER_BH_NOT_INITIALIZED);
 

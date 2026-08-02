@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -491,6 +491,7 @@ CpaStatus Lac_MemPoolInitSymCookiesPhyAddr(lac_memory_pool_id_t poolID,
         for (count = 0; count < pPoolID->numElementsInPool; count++)
         {
             pCurrentBlk = pPoolID->trackBlks[count];
+            pCurrentBlk->opaque = ICP_ADF_INVALID_SEND_SEQ;
             pSymCookie = (lac_sym_cookie_t *)((LAC_ARCH_UINT)(pCurrentBlk) +
                                               sizeof(lac_mem_blk_t));
             Lac_MemPoolInitSymCookies(pSymCookie, instanceHandle);

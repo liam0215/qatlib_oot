@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -65,7 +65,6 @@ int32_t adf_reinit_ring(adf_dev_ring_handle_t *ring,
 
 void adf_cleanup_ring(adf_dev_ring_handle_t *ring);
 void adf_reset_ring(adf_dev_ring_handle_t *ring);
-int32_t adf_ring_freebuf(adf_dev_ring_handle_t *ring);
 
 #ifndef USE_LEGACY_ETRINGMGR
 

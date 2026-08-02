@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 #include <string.h>
@@ -546,17 +546,6 @@ int32_t adf_reinit_ring(adf_dev_ring_handle_t *ring,
 {
     return adf_init_ring_internal(
         ring, bank, ring_num, bank->csr_addr, num_msgs, msg_size, nodeid);
-}
-
-int32_t adf_ring_freebuf(adf_dev_ring_handle_t *ring)
-{
-    if (ring->ring_virt_addr)
-    {
-        /* This function will also set ring->ring_virt_addr to NULL */
-        qaeMemFreeNUMA(&ring->ring_virt_addr);
-    }
-
-    return 0;
 }
 
 static void adf_clean_ring(adf_dev_ring_handle_t *ring)

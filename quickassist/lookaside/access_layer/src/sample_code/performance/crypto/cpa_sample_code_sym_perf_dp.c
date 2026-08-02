@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -558,7 +558,7 @@ static CpaStatus symmetricDpSetupSession(CpaCySymDpCbFunc pSymCb,
 )
 {
     Cpa32U sessionCtxSizeInBytes = 0;
-#if CPA_CY_API_VERSION_NUM_MINOR >= 8
+#if CPA_CY_API_VERSION_AT_LEAST(1, 8)
     Cpa32U sessionCtxDynamicSizeInBytes = 0;
 #endif
     CpaStatus status = CPA_STATUS_SUCCESS;
@@ -640,7 +640,7 @@ static CpaStatus symmetricDpSetupSession(CpaCySymDpCbFunc pSymCb,
         return status;
     }
 
-#if CPA_CY_API_VERSION_NUM_MINOR >= 8
+#if CPA_CY_API_VERSION_AT_LEAST(1, 8)
     /*get dynamic context size*/
 
     status = cpaCySymDpSessionCtxGetDynamicSize(setup->cyInstanceHandle,
@@ -682,7 +682,7 @@ static CpaStatus symmetricDpSetupSession(CpaCySymDpCbFunc pSymCb,
     *pSession = pLocalSession;
 
 
-#if CPA_CY_API_VERSION_NUM_MINOR >= 8
+#if CPA_CY_API_VERSION_AT_LEAST(1, 8)
 #endif
 
 

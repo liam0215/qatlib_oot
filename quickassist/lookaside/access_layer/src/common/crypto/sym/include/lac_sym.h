@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ****************************************************************************/
 
@@ -301,6 +301,23 @@ typedef struct lac_sym_key_cookie_s
 
 /**
 *******************************************************************************
+*****************************************************************************
+* @ingroup LacSym
+*      symmetric cookie type.
+* @description
+*      used to determine symmetric cookie type
+*
+*****************************************************************************/
+typedef enum lac_sym_cookie_type_t
+{
+    LAC_SYM_BULK_COOKIE_TYPE = 0,
+    /**< symmetric bulk cookie type */
+    LAC_SYM_KEY_COOKIE_TYPE = 1,
+    /**< symmetric key cookie type */
+} lac_sym_cookie_type_t;
+
+/**
+*******************************************************************************
 * @ingroup LacSym
 *      symmetric cookie
 * @description
@@ -320,6 +337,8 @@ typedef struct lac_sym_cookie_s
     Cpa64U keyHashStateBufferDevAddr;
     Cpa64U keySslKeyInputDevAddr;
     Cpa64U keyTlsKeyInputDevAddr;
+    lac_sym_cookie_type_t cookieType;
+    /**< symmetric cookie type */
 } lac_sym_cookie_t;
 
 typedef struct icp_qat_la_auth_req_params_s

@@ -57,7 +57,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -1205,7 +1205,7 @@ chr_drv_create_class(chr_drv_info_t* drv_info)
                      -EINVAL);
 
 #if KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE
-#if (RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) == RHEL_RELEASE_CODE)
+#if (RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) <= RHEL_RELEASE_CODE)
     drv_info->drv_class = class_create(drv_info->name);
 #else
     drv_info->drv_class = class_create(THIS_MODULE, drv_info->name);
@@ -1718,9 +1718,10 @@ qae_mem_update_slab_data(int open)
 /*read function for debug file
  returns number of bytes read
  read operation completes when 0 is returned here*/
-static ssize_t
-qae_mem_slabs_data_read(struct file* filp, char __user *buffer,
-        size_t count, loff_t * pos)
+static ssize_t qae_mem_slabs_data_read(struct file *filep,
+                                       char __user *buffer,
+                                       size_t count,
+                                       loff_t *pos)
 {
     /*update data in debug buffer*/
     int data_len = qae_mem_update_slab_data(false);
@@ -1739,10 +1740,10 @@ qae_mem_slabs_data_read(struct file* filp, char __user *buffer,
     return count;
 }
 /*write function for write operation of the debug file*/
-static ssize_t
-qae_mem_slabs_data_write (struct file *filp,
-                                          const char __user *buffer,
-                                          size_t count, loff_t *pos)
+static ssize_t qae_mem_slabs_data_write(struct file *filep,
+                                        const char __user *buffer,
+                                        size_t count,
+                                        loff_t *pos)
 {
     /*write command to qae_dbg_command buffer
      *next read on debug file will parse the command string

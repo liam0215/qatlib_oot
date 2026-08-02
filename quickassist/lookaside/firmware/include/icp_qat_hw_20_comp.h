@@ -30,7 +30,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 
 /**
@@ -64,22 +64,19 @@
 *****************************************************************************/
 typedef struct icp_qat_hw_comp_20_config_csr_lower_s
 {
-	/* Fields programmable directly by the SW. */
-	icp_qat_hw_comp_20_extended_delay_match_mode_t edmm;
-	icp_qat_hw_comp_20_hw_comp_format_t algo;
-	icp_qat_hw_comp_20_search_depth_t sd;
-	icp_qat_hw_comp_20_hbs_control_t hbs;
-	/* Fields programmable directly by the FW. */
-	/* Block Drop enable. (Set by FW) */
-	icp_qat_hw_comp_20_abd_t abd;
-	icp_qat_hw_comp_20_lllbd_ctrl_t lllbd;
-	/* Advanced HW control (Set to default vals) */
-	icp_qat_hw_comp_20_min_match_control_t mmctrl;
-	icp_qat_hw_comp_20_skip_hash_collision_t hash_col;
-	icp_qat_hw_comp_20_skip_hash_update_t hash_update;
-	icp_qat_hw_comp_20_byte_skip_t skip_ctrl;
-
-}icp_qat_hw_comp_20_config_csr_lower_t;
+    icp_qat_hw_comp_20_extended_delay_match_mode_t edmm;
+    icp_qat_hw_comp_20_hw_comp_format_t algo;
+    icp_qat_hw_comp_20_search_depth_t sd;
+    icp_qat_hw_comp_20_hbs_control_t hbs;
+    /* Block Drop enable. */
+    icp_qat_hw_comp_20_abd_t abd;
+    icp_qat_hw_comp_20_lllbd_ctrl_t lllbd;
+    /* Advanced HW control */
+    icp_qat_hw_comp_20_min_match_control_t mmctrl;
+    icp_qat_hw_comp_20_skip_hash_collision_t hash_col;
+    icp_qat_hw_comp_20_skip_hash_update_t hash_update;
+    icp_qat_hw_comp_20_byte_skip_t skip_ctrl;
+} icp_qat_hw_comp_20_config_csr_lower_t;
 
 /**
 *****************************************************************************
@@ -233,15 +230,14 @@ static inline uint32_t ICP_QAT_FW_COMP_20_BUILD_CONFIG_UPPER(
 *****************************************************************************/
 typedef struct icp_qat_hw_decomp_20_config_csr_lower_s
 {
-	/* Fields programmable directly by the SW. */
-	icp_qat_hw_decomp_20_hbs_control_t hbs;
-	icp_qat_hw_decomp_20_lbms_t lbms;
-	/* Advanced HW control (Set to default vals) */
-	icp_qat_hw_decomp_20_hw_comp_format_t algo;
-	icp_qat_hw_decomp_20_min_match_control_t mmctrl;
-	icp_qat_hw_decomp_20_lz4_block_checksum_present_t lbc;
-}icp_qat_hw_decomp_20_config_csr_lower_t;
-
+    /* Fields programmable directly by the SW. */
+    icp_qat_hw_decomp_20_hbs_control_t hbs;
+    icp_qat_hw_decomp_20_lbms_t lbms;
+    /* Advanced HW control */
+    icp_qat_hw_decomp_20_hw_comp_format_t algo;
+    icp_qat_hw_decomp_20_min_match_control_t mmctrl;
+    icp_qat_hw_decomp_20_lz4_block_checksum_present_t lbc;
+} icp_qat_hw_decomp_20_config_csr_lower_t;
 
 /**
 *****************************************************************************

@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 /******************************************************************************
@@ -77,21 +77,5 @@ CpaStatus adf_user_subsystemStop(icp_accel_dev_t *accel_dev);
  *
  *****************************************************************************/
 CpaStatus adf_user_subsystemShutdown(icp_accel_dev_t *accel_dev);
-
-/**
- *****************************************************************************
- * @description
- *      This function sends a resume event to registered subcomponents.
- *
- *****************************************************************************/
-CpaStatus adf_user_subsystemResume(icp_accel_dev_t *accel_dev);
-
-/**
- *****************************************************************************
- * @description
- *      This function sends a suspend event to registered subcomponents.
- *
- *****************************************************************************/
-CpaStatus adf_user_subsystemSuspend(icp_accel_dev_t *accel_dev);
 
 #endif /* ADF_USER_INIT_H */

@@ -30,11 +30,9 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 
 KERNELVERSION=$(shell uname -r | cut -d'.' -f1,2)
-$(OBJECTS): 
-	@echo Error: $@: To get object files in kernel space, you need to build a static library or a module;
 
 obj-m+=$(OUTPUT_NAME).o
 $(OUTPUT_NAME)-objs := $(patsubst %.c,%.o, $(MODULE_SOURCES)) $(ADDITIONAL_KERNEL_LIBS)
@@ -73,7 +71,7 @@ $(MODULENAME): dirs
 	@echo 'Creating static library ${LIB_STATIC}'; \
 	$(MAKE) -C $(KERNEL_SOURCE_ROOT)/ M=$(PWD) obj-m="" $(FLAG); \
 	echo 'Copying outputs';\
-	test -f lib.a && cp -f $(OUTPUT_OBJECTS) $(PWD) 2>/dev/null ||:;
+	test -f lib.a && cp -f $(OUTPUT_OBJECTS) $(PWD) 2>/dev/null ||:; \
 	test -f lib.a  &&  (ar -t lib.a | xargs ar -rcsD $(LIB_STATIC)); \
 	test -f $(LIB_STATIC)  &&  mv -f $(LIB_STATIC) $($(PROG_ACY)_FINAL_OUTPUT_DIR)/$(LIB_STATIC); \
 	echo 'Creating kernel module'; \

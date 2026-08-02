@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 #
 #################################################################
 #
@@ -119,19 +119,19 @@ ADF_CTL=/usr/sbin/adf_ctl
 OOT_ONLY=/dev/qat_dev_processes
 
 # store the total number of each type of device
-numDh895xDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:$DH895_DEVICE_PCI_ID")
-numDh895xDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:$DH895_DEVICE_PCI_ID_VM")
-numC62xDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C62X_DEVICE_PCI_ID")
-numC62xDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C62X_DEVICE_PCI_ID_VM")
-numC3xxDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C3XX_DEVICE_PCI_ID")
-numC3xxDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C3XX_DEVICE_PCI_ID_VM")
-numD15xxDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:$D15XX_DEVICE_PCI_ID")
-numD15xxDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:$D15XX_DEVICE_PCI_ID_VM")
-numC4xxDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C4XX_DEVICE_PCI_ID")
-numC4xxDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:$C4XX_DEVICE_PCI_ID_VM")
-num4xxxDevicesPF=$(lspci -n | egrep -c "$INTEL_VENDORID:($QAT_4XXX_DEVICE_PCI_ID|$QAT_401XX_DEVICE_PCI_ID|$QAT_402XX_DEVICE_PCI_ID)")
-num4xxxDevicesVF=$(lspci -n | egrep -c "$INTEL_VENDORID:($QAT_4XXX_DEVICE_PCI_ID_VM|$QAT_401XX_DEVICE_PCI_ID_VM|$QAT_402XX_DEVICE_PCI_ID_VM)")
-numVQATDevices=$(lspci -n | egrep -c "$INTEL_VENDORID:$VQAT_DEVICE_PCI_ID")
+numDh895xDevicesPF=$(lspci -n | grep -cE "$INTEL_VENDORID:$DH895_DEVICE_PCI_ID")
+numDh895xDevicesVF=$(lspci -n | grep -cE "$INTEL_VENDORID:$DH895_DEVICE_PCI_ID_VM")
+numC62xDevicesPF=$(lspci -n | grep -cE "$INTEL_VENDORID:$C62X_DEVICE_PCI_ID")
+numC62xDevicesVF=$(lspci -n | grep -cE "$INTEL_VENDORID:$C62X_DEVICE_PCI_ID_VM")
+numC3xxDevicesPF=$(lspci -n | grep -cE "$INTEL_VENDORID:$C3XX_DEVICE_PCI_ID")
+numC3xxDevicesVF=$(lspci -n | grep -cE "$INTEL_VENDORID:$C3XX_DEVICE_PCI_ID_VM")
+numD15xxDevicesPF=$(lspci -n | grep -cE "$INTEL_VENDORID:$D15XX_DEVICE_PCI_ID")
+numD15xxDevicesVF=$(lspci -n | grep -ce "$INTEL_VENDORID:$D15XX_DEVICE_PCI_ID_VM")
+numC4xxDevicesPF=$(lspci -n | grep -ce "$INTEL_VENDORID:$C4XX_DEVICE_PCI_ID")
+numC4xxDevicesVF=$(lspci -n | grep -cE "$INTEL_VENDORID:$C4XX_DEVICE_PCI_ID_VM")
+num4xxxDevicesPF=$(lspci -n | grep -cE "$INTEL_VENDORID:($QAT_4XXX_DEVICE_PCI_ID|$QAT_401XX_DEVICE_PCI_ID|$QAT_402XX_DEVICE_PCI_ID)")
+num4xxxDevicesVF=$(lspci -n | grep -cE "$INTEL_VENDORID:($QAT_4XXX_DEVICE_PCI_ID_VM|$QAT_401XX_DEVICE_PCI_ID_VM|$QAT_402XX_DEVICE_PCI_ID_VM)")
+numVQATDevices=$(lspci -n | grep -cE "$INTEL_VENDORID:$VQAT_DEVICE_PCI_ID")
 
 disable_sriov()
 {

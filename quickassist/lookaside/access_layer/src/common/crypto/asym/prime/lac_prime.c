@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -997,7 +997,7 @@ CpaStatus cpaCyPrimeTest(const CpaInstanceHandle instanceHandle_in,
  *      Prime Statistics Query API function
  ******************************************************************************/
 CpaStatus cpaCyPrimeQueryStats(CpaInstanceHandle instanceHandle_in,
-                               struct _CpaCyPrimeStats *pPrimeStats)
+                               CpaCyPrimeStats *pPrimeStats)
 {
     sal_crypto_service_t *pCryptoService = NULL;
     CpaInstanceHandle instanceHandle = NULL;

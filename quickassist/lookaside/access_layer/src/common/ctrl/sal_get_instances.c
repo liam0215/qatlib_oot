@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -301,6 +301,8 @@ CpaStatus cpaGetNumInstances(
     const CpaAccelerationServiceType accelerationServiceType,
     Cpa16U *pNumInstances)
 {
+    LAC_CHECK_NULL_PARAM(pNumInstances);
+
     switch (accelerationServiceType)
     {
 #ifndef ICP_DC_ONLY

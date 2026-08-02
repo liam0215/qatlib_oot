@@ -59,7 +59,7 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ###############################################################################
 
 ifndef ICP_ROOT
@@ -112,6 +112,7 @@ ifndef MACHINE
 $(error MACHINE not defined)
 endif
 endif
+ccflags-y+=$(EXTRA_CFLAGS)
 
 # add the path and list of source libraries,
 ADDITIONAL_KERNEL_LIBS=$(OS_LEVEL)/$(ICP_OS_LEVEL)/$(ICP_BUILD_OUTPUT_DIR)/libosal.a

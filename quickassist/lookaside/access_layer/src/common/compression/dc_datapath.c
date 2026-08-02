@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -856,9 +856,8 @@ CpaStatus dcCompression_CommonProcessCallback(
              * compression and decompression direction. With Traditional API
              * this error message will be returned only in stateless
              * decompression direction */
-            LAC_LOG_ERROR(
-                "Unrecoverable error: stateless overflow. You may "
-                "need to increase the size of your destination buffer");
+            LAC_LOG_DEBUG("Error: stateless overflow.");
+            LAC_LOG_DEBUG("Try resubmitting with a larger destination buffer.");
         }
 
         if (CPA_TRUE == pSessionDesc->isDcDp)

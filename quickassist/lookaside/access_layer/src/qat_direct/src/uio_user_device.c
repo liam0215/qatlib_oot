@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 #include <errno.h>
@@ -372,8 +372,8 @@ STATIC CpaStatus subsystem_notify(icp_accel_dev_t *accel_dev, Cpa32U event)
             if (CPA_STATUS_SUCCESS == stat_restart)
             {
                 adf_start_system(accel_tbl[accel_dev->accelId]);
+                accel_dev_error_stat[accel_dev->accelId] = 0;
             }
-            accel_dev_error_stat[accel_dev->accelId] = 0;
             break;
         case ADF_EVENT_ERROR:
             /* accel_dev_error_stat is set after calling adf_subsystemError
@@ -445,11 +445,16 @@ STATIC int32_t adf_proxy_get_device(int dev_id)
     int32_t err;
     int ring_file_hnd = 0;
 
-    if ((dev_id >= ADF_MAX_DEVICES) || (NULL != accel_tbl[dev_id]))
-        return 0; /* Invalid dev_id or Already created. */
+    /* Invalid dev_id. */
+    if (dev_id >= ADF_MAX_DEVICES)
+        return EINVAL;
+
+    /* Device already created */
+    if (NULL != accel_tbl[dev_id])
+        return EEXIST;
 
     if (!uio_acces_dev_exist(dev_id, NULL))
-        return 0;
+        return ENODEV;
 
     if (uio_create_accel_dev(&accel_tbl[dev_id], dev_id))
     {
@@ -473,7 +478,7 @@ STATIC int32_t adf_proxy_get_device(int dev_id)
     return 0;
 
 adf_proxy_get_device_init_failed:
-    free(accel_tbl[dev_id]);
+    uio_destroy_accel_dev(accel_tbl[dev_id]);
     accel_tbl[dev_id] = NULL;
 adf_proxy_get_device_exit:
     return err;
@@ -484,11 +489,12 @@ STATIC int32_t adf_proxy_restart_device(int dev_id)
     int32_t err;
     int ring_file_hnd = 0;
 
-    if ((dev_id >= ADF_MAX_DEVICES))
-        return 0; /* Invalid dev_id or Already created. */
+    /* Invalid dev_id */
+    if (dev_id >= ADF_MAX_DEVICES)
+        return EINVAL;
 
     if (!uio_acces_dev_exist(dev_id, NULL))
-        return 0;
+        return ENODEV;
 
     if (uio_reinit_accel_dev(&accel_tbl[dev_id], dev_id))
     {
@@ -517,7 +523,7 @@ STATIC int32_t adf_proxy_restart_device(int dev_id)
 
 adf_proxy_restart_device_init_failed:
     adf_user_transport_exit(accel_tbl[dev_id]);
-    free(accel_tbl[dev_id]);
+    uio_destroy_accel_dev(accel_tbl[dev_id]);
     accel_tbl[dev_id] = NULL;
 adf_proxy_restart_device_exit:
     return err;
@@ -539,12 +545,24 @@ STATIC int adf_proxy_get_dev_events(int dev_id)
     return 0;
 }
 
+STATIC void adf_proxy_cleanup_initialized_devices()
+{
+    uint32_t ctr;
+
+    for (ctr = 0; ctr < ADF_MAX_DEVICES; ctr++)
+    {
+        if (accel_tbl[ctr] != NULL)
+            adf_cleanup_device(ctr);
+    }
+}
+
 CpaStatus adf_proxy_get_devices(void)
 {
     CpaStatus ret = CPA_STATUS_SUCCESS;
     int32_t ctr = 0;
     Cpa32U num_dev = 0;
     Cpa32U real_id = 0;
+    struct adf_dev_status_info dev_info = { 0 };
 
     int fd = open(ADF_CTL_DEVICE_NAME, O_RDONLY);
     if (fd < 0)
@@ -554,7 +572,7 @@ CpaStatus adf_proxy_get_devices(void)
     {
         ADF_ERROR("Failed to get number of devices\n");
         ret = CPA_STATUS_FAIL;
-        goto cleanup;
+        goto exit;
     }
 
     for (ctr = 0; ctr < num_dev; ctr++)
@@ -566,15 +584,38 @@ CpaStatus adf_proxy_get_devices(void)
             ret = CPA_STATUS_FAIL;
             goto cleanup;
         }
-        if (adf_proxy_get_device(real_id))
+
+        dev_info.accel_id = real_id;
+        if (ioctl(fd, IOCTL_STATUS_ACCEL_DEV, &dev_info))
         {
-            ADF_ERROR("adf_proxy_get_device error ctr\n");
+            ADF_ERROR("Failed to get status for device %d\n", real_id);
+            ret = CPA_STATUS_FAIL;
+            goto cleanup;
+        }
+
+        /* Skip the adf_proxy_get_device() if the device state is down */
+        if (dev_info.state == 0)
+        {
+            continue;
+        }
+
+        ret = adf_proxy_get_device(real_id);
+        if (ENODEV == ret)
+        {
+            continue;
+        }
+        if (ret)
+        {
+            ADF_ERROR("adf_proxy_get_device failed for device %u\n", real_id);
             ret = CPA_STATUS_FAIL;
             goto cleanup;
         }
     }
 
 cleanup:
+    if (ret != CPA_STATUS_SUCCESS)
+        adf_proxy_cleanup_initialized_devices();
+exit:
     close(fd);
 
     return ret;

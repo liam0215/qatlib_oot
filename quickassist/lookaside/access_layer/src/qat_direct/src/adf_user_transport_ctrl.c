@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -990,47 +990,6 @@ CpaStatus icp_adf_transPutMsg(icp_comms_trans_handle trans_handle,
                           pRingHandle->message_size,
                           pRingHandle->message_size);
     return adf_user_put_msg(pRingHandle, inBuf, seq_num);
-}
-
-/*
- * adf_user_unmap_rings
- * Device is going down - unmap all rings allocated for this device
- */
-CpaStatus adf_user_unmap_rings(icp_accel_dev_t *accel_dev)
-{
-    CpaStatus stat = CPA_STATUS_SUCCESS;
-    adf_dev_ring_handle_t *pRingHandle = NULL;
-    adf_dev_bank_handle_t *bank = NULL;
-    int i = 0, l = 0;
-
-    bank = accel_dev->banks;
-    for (i = 0; i < accel_dev->maxNumBanks; i++)
-    {
-        if (NULL == bank->rings)
-            continue;
-
-        for (l = 0; l < accel_dev->maxNumRingsPerBank; l++)
-        {
-            pRingHandle = (bank->rings)[i];
-#ifdef CONFIG_USE_UIO_BUNDLE_ADDR
-            if (pRingHandle)
-                adf_ring_freebuf(pRingHandle);
-
-            if (pRingHandle && pRingHandle->ring_virt_addr)
-            {
-#else
-            ret = munmap(pRingHandle->ring_virt_addr, pRingHandle->ring_size);
-            if (ret)
-            {
-                ADF_ERROR("Failed unmapping ring memory\n");
-                stat = CPA_STATUS_FAIL;
-            }
-            pRingHandle->ring_virt_addr = NULL;
-#endif
-            }
-        }
-    }
-    return stat;
 }
 
 /*

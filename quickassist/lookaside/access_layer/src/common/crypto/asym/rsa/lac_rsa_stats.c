@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 /**
@@ -135,7 +135,7 @@ void LacRsa_StatsReset(CpaInstanceHandle instanceHandle)
  *
  *****************************************************************************/
 CpaStatus cpaCyRsaQueryStats(CpaInstanceHandle instanceHandle_in,
-                             struct _CpaCyRsaStats *pRsaStats)
+                             CpaCyRsaStats *pRsaStats)
 {
     Cpa32U i = 0;
     sal_crypto_service_t *pCryptoService;

@@ -669,6 +669,10 @@ static int adf_dev_start_locked(struct adf_accel_dev *accel_dev)
 			clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 			return -ENODEV;
 		}
+
+		/* Unmask RP interrupts */
+		if (hw_data->mask_rp_irqs)
+			hw_data->mask_rp_irqs(accel_dev, 0);
 	}
 
 	if (accel_dev->svm_enabled)
@@ -723,14 +727,6 @@ static void adf_dev_stop_locked(struct adf_accel_dev *accel_dev)
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 
-	adf_rate_limiting_exit(accel_dev);
-
-	if (hw_data->int_timer_exit)
-		hw_data->int_timer_exit(accel_dev);
-
-	if (hw_data->telemetry_exit)
-		hw_data->telemetry_exit(accel_dev);
-
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
 		if (!test_bit(accel_dev->accel_id, service->start_status))
@@ -754,6 +750,18 @@ static void adf_dev_stop_locked(struct adf_accel_dev *accel_dev)
 			break;
 		msleep(100);
 	}
+
+	/* Mask RP interrupts */
+	if (hw_data->mask_rp_irqs)
+		hw_data->mask_rp_irqs(accel_dev, hw_data->rp_mask);
+
+	adf_rate_limiting_exit(accel_dev);
+
+	if (hw_data->int_timer_exit)
+		hw_data->int_timer_exit(accel_dev);
+
+	if (hw_data->telemetry_exit)
+		hw_data->telemetry_exit(accel_dev);
 
 	if (test_bit(ADF_STATUS_AE_STARTED, &accel_dev->status)) {
 		if (adf_ae_stop(accel_dev))
@@ -984,11 +992,13 @@ int adf_dev_restarting_notify_sync(struct adf_accel_dev *accel_dev)
 
 	adf_dev_restarting_notify(accel_dev);
 	for (times = 0; times < ADF_RESTARTING_RETRY; times++) {
-		if (!adf_dev_in_use(accel_dev))
+		/* Trying to lock the device for reset */
+		if (adf_dev_lock(accel_dev))
 			break;
 		dev_dbg(&GET_DEV(accel_dev), "retry times=%d\n", times);
 		msleep(100);
 	}
+	/* Lock was not successful */
 	if (adf_dev_in_use(accel_dev)) {
 		dev_warn(&GET_DEV(accel_dev),
 			 "Device is still in use, can't be stopped.\n");

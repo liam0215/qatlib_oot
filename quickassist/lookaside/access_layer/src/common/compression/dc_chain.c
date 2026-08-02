@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -975,7 +975,7 @@ CpaStatus dcChainInitSessions(CpaInstanceHandle dcInstance,
                 ICP_QAT_FW_COMP_CHAIN_NO_DERIVE_KEY,
                 ICP_QAT_FW_COMP_CHAIN_NO_CRC64_CTX);
         pSessHead->hdr.comn_hdr2.comn_req_flags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-            DC_DEFAULT_QAT_PTR_TYPE, QAT_COMN_CD_FLD_TYPE_16BYTE_DATA);
+            QAT_COMN_CD_FLD_TYPE_16BYTE_DATA, DC_DEFAULT_QAT_PTR_TYPE);
         /* Set AT flag in request header if instance supports address
          * translation
          */

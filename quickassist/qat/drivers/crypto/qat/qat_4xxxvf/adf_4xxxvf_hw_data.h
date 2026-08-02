@@ -35,9 +35,9 @@
 
 /* Interrupt Coalesce Timer Defaults */
 #define ADF_4XXXIOV_ACCEL_DEF_COALESCE_TIMER 1000
-#define ADF_4XXXIOV_COALESCING_MIN_TIME 0x1F
+#define ADF_4XXXIOV_COALESCING_MIN_TIME 0x1
 #define ADF_4XXXIOV_COALESCING_MAX_TIME 0xFFFF
-#define ADF_4XXXIOV_COALESCING_DEF_TIME 0x1F4
+#define ADF_4XXXIOV_COALESCING_DEF_TIME 0x1F40
 
 /*qat_4xxxvf fuse bits are same as qat_4xxx*/
 enum icp_qat_4xxxvf_slice_mask {

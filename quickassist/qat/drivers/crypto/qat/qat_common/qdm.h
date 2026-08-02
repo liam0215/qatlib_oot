@@ -25,7 +25,7 @@ static inline bool qdm_iommu_present(void)
 	return pci_bus_iommu_present(&pci_bus_type);
 }
 
-int qdm_init(void);
+int qdm_init(struct device *dev);
 void qdm_exit(void);
 int qdm_attach_device(struct device *dev);
 int qdm_detach_device(struct device *dev);

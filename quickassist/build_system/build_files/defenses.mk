@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ####################
 
 #Compile Code with Defenses enabled
@@ -95,6 +95,8 @@ EXTRA_CFLAGS += -Wno-unused-command-line-argument
 endif
 endif
 EXTRA_CFLAGS += -fwrapv
+
+ccflags-y+=$(EXTRA_CFLAGS)
 
 else # -O0 used
 $(error $(PROG_ACY)_DEFENSES_ENABLED and -O0 are incompatible)

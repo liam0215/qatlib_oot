@@ -1053,7 +1053,7 @@ static void qat_aead_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	qat_alg_free_bufl(inst, qat_req);
 	if (unlikely(qat_res != ICP_QAT_FW_COMN_STATUS_FLAG_OK))
 		res = -EBADMSG;
-	areq->base.complete(&areq->base, res);
+	aead_request_complete(areq, res);
 }
 
 static void qat_alg_update_iv_ctr_mode(struct qat_crypto_request *qat_req)
@@ -1177,8 +1177,7 @@ static void qat_skcipher_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 		qat_alg_update_iv(qat_req);
 
 	memcpy(areq->iv, qat_req->iv, AES_BLOCK_SIZE);
-
-	areq->base.complete(&areq->base, res);
+	skcipher_request_complete(areq, res);
 }
 #endif
 

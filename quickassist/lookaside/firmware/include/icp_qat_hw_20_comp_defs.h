@@ -30,7 +30,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 /*
  ****************************************************************************
@@ -46,7 +46,7 @@
 #define _ICP_QAT_HW_20_COMP_DEFS_H
 
 /*****************************************************************************/
-/* SCB Disabled - Set by FW, located in upper 32bit */
+/* SCB Disabled -  located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_CONTROL_BITPOS    31
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_CONTROL_MASK      0x1
 /*
@@ -68,7 +68,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Reset Bit Mask Disabled - Set by FW , located in upper 32bit */
+/* Reset Bit Mask Disabled - located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_RMB_CONTROL_BITPOS    30
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_RMB_CONTROL_MASK      0x1
 /*
@@ -79,9 +79,9 @@ typedef enum
  *****************************************************************************/
 typedef enum
 {
-    ICP_QAT_HW_COMP_20_RMB_CONTROL_RESET_ALL=0x0,
-    /* Reset all data structures with a set_config command. (Set by FW) */
-    ICP_QAT_HW_COMP_20_RMB_CONTROL_RESET_FC_ONLY=0x1,
+    ICP_QAT_HW_COMP_20_RMB_CONTROL_RESET_ALL = 0x0,
+    /* Reset all data structures with a set_config command. */
+    ICP_QAT_HW_COMP_20_RMB_CONTROL_RESET_FC_ONLY = 0x1,
     /* Reset only the Frequency Counters (LFCT) with a set_config command. */
 } icp_qat_hw_comp_20_rmb_control_t;
 
@@ -90,7 +90,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Slice Operation Mode (SOM) - Set By FW, located in upper 32bit */
+/* Slice Operation Mode (SOM) - located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SOM_CONTROL_BITPOS    28
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SOM_CONTROL_MASK      0x3
 /*
@@ -116,7 +116,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Skip Hash Read (Set By FW) , located in upper 32bit */
+/* Skip Hash Read, located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_RD_CONTROL_BITPOS    27
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_RD_CONTROL_MASK      0x1
 /*
@@ -182,7 +182,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* LZ4 Block Maximum Size (LBMS). Set by FW , located in upper 32bit */
+/* LZ4 Block Maximum Size (LBMS). located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_BITPOS    19
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LBMS_MASK      0x3
 /*
@@ -208,7 +208,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* SCB Mode Reset Mask (Set By FW) , located in upper 32bit */
+/* SCB Mode Reset Mask, located in upper 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_BITPOS    18
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SCB_MODE_RESET_MASK_MASK      0x1
 /*
@@ -245,7 +245,7 @@ typedef enum
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_NICE_PARAM_DEFAULT_VAL 259
 
 /*****************************************************************************/
-/* History Buffer Size (Set By the Driver/ Application), located in lower 32bit */
+/* History Buffer Size, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HBS_CONTROL_BITPOS    14
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HBS_CONTROL_MASK      0x7
 /*
@@ -265,7 +265,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Adaptive Block Drop (Set By FW if Dynamic), located in lower 32bit */
+/* Adaptive Block Drop, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_ABD_BITPOS    13
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_ABD_MASK      0x1
 /*
@@ -287,7 +287,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Literal+Length Limit Block Drop Block Drop, (Set By FW if Dynamic) , located in lower 32bit */
+/* Literal+Length Limit Block Drop, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LLLBD_CTRL_BITPOS    12
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_LLLBD_CTRL_MASK      0x1
 /*
@@ -309,7 +309,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Search Depth (SD) (Set By Driver/Application), located in lower 32bit */
+/* Search Depth (SD), located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SEARCH_DEPTH_BITPOS    8
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SEARCH_DEPTH_MASK      0xf
 /*
@@ -333,7 +333,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Compression Format (Set By Driver/Application. Also See CMD ID), located in lower 32bit */
+/* Compression Format (Also See CMD ID), located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HW_COMP_FORMAT_BITPOS    5
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_HW_COMP_FORMAT_MASK      0x7
 /*
@@ -359,7 +359,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Min Match (Set By FW to default value), located in lower 32bit */
+/* Min Match, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS    4
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK      0x1
 /*
@@ -381,7 +381,7 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Skip Hash Collision (Set By FW to default value), located in lower 32bit */
+/* Skip Hash Collision, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_COLLISION_BITPOS    3
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_COLLISION_MASK      0x1
 /*
@@ -392,17 +392,17 @@ typedef enum
  *****************************************************************************/
 typedef enum
 {
-    ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_ALLOW=0x0,
-    /* When set to 0, hash collisions are allowed.  */
-    ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_DONT_ALLOW=0x1,
-    /* When set to 0, hash collisions are allowed.  */
+    ICP_QAT_HW_COMP_20_HASH_COLLISION_ALLOW = 0x0,
+    /* 0 - Hash collisions are allowed. */
+    ICP_QAT_HW_COMP_20_HASH_COLLISION_SKIP = 0x1,
+    /* 1 - Hash collisions are prevented.  */
 } icp_qat_hw_comp_20_skip_hash_collision_t;
 
-#define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_COLLISION_DEFAULT_VAL    \
-        ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_ALLOW
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_COLLISION_DEFAULT_VAL          \
+    ICP_QAT_HW_COMP_20_HASH_COLLISION_ALLOW
 
 /*****************************************************************************/
-/* Skip Hash Update (Set By FW to default value) , located in lower 32bit */
+/* Skip Hash Update, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_UPDATE_BITPOS    2
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_UPDATE_MASK      0x1
 /*
@@ -413,18 +413,17 @@ typedef enum
  *****************************************************************************/
 typedef enum
 {
-    ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_ALLOW=0x0,
-    /* 0 - hash updates are not skipped.  */
-    ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW=0x1,
-    /* 1 - hash updates are skipped.  */
+    ICP_QAT_HW_COMP_20_HASH_UPDATE_ALLOW = 0x0,
+    /* 0 - Hash updates for repeating byte patterns are allowed. */
+    ICP_QAT_HW_COMP_20_HASH_UPDATE_SKIP = 0x1,
+    /* 1 - Hash updates for repeating byte patterns are prevented.  */
 } icp_qat_hw_comp_20_skip_hash_update_t;
 
-#define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_UPDATE_DEFAULT_VAL    \
-        ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_ALLOW
-
+#define ICP_QAT_HW_COMP_20_CONFIG_CSR_SKIP_HASH_UPDATE_DEFAULT_VAL             \
+    ICP_QAT_HW_COMP_20_HASH_UPDATE_ALLOW
 
 /*****************************************************************************/
-/* 3-Byte Match Skip (Set By FW to default value), located in lower 32bit */
+/* 3-Byte Match Skip, located in lower 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_BYTE_SKIP_BITPOS    1
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_BYTE_SKIP_MASK      0x1
 /*
@@ -446,7 +445,8 @@ typedef enum
 
 
 /*****************************************************************************/
-/* Extended Delayed Match Mode enabled (Set By the Driver), located in lower 32bit */
+/* Extended Delayed Match Mode enabled, located in lower
+ * 32bit */
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_EXTENDED_DELAY_MATCH_MODE_BITPOS    0
 #define ICP_QAT_HW_COMP_20_CONFIG_CSR_EXTENDED_DELAY_MATCH_MODE_MASK      0x1
 /*
@@ -467,7 +467,7 @@ typedef enum
         ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_DISABLED
 
 /*****************************************************************************/
-/* Speculative Decoder Disable (Set By the Driver/ Application), located in upper 32bit */
+/* Speculative Decoder Disable, located in upper 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_SPECULATIVE_DECODER_CONTROL_BITPOS    31
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_SPECULATIVE_DECODER_CONTROL_MASK      0x1
 /*
@@ -488,7 +488,7 @@ typedef enum
         ICP_QAT_HW_DECOMP_20_SPECULATIVE_DECODER_CONTROL_ENABLE
 
 /*****************************************************************************/
-/* Mini CAM Disable (Set By the Driver/ Application), located in upper 32bit */
+/* Mini CAM Disable, located in upper 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_BITPOS    30
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MINI_CAM_CONTROL_MASK      0x1
 /*
@@ -509,7 +509,7 @@ typedef enum
         ICP_QAT_HW_DECOMP_20_MINI_CAM_CONTROL_ENABLE
 
 /*****************************************************************************/
-/* History Buffer Size (Set By the Driver/ Application), located in lower 32bit */
+/* History Buffer Size, located in lower 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HBS_CONTROL_BITPOS    14
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HBS_CONTROL_MASK      0x7
 /*
@@ -528,7 +528,7 @@ typedef enum
         ICP_QAT_HW_DECOMP_20_HBS_CONTROL_HBS_IS_32KB
 
 /*****************************************************************************/
-/* LZ4 Block Maximum Size (LBMS). Set by FW , located in lower 32bit */
+/* LZ4 Block Maximum Size (LBMS), located in lower 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_BITPOS    8
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_LBMS_MASK      0x3
 /*
@@ -553,7 +553,7 @@ typedef enum
         ICP_QAT_HW_DECOMP_20_LBMS_LBMS_64KB
 
 /*****************************************************************************/
-/* Decompression Format (Set By Driver/Application. Also See CMD ID), located in lower 32bit */
+/* Decompression Format (Also See CMD ID), located in lower 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_BITPOS    5
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_HW_DECOMP_FORMAT_MASK      0x7
 /*
@@ -576,7 +576,7 @@ typedef enum
         ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE
 
 /*****************************************************************************/
-/* Decompression Format (Set By Driver/Application. Also See CMD ID), located in lower 32bit */
+/* Decompression Format (Also See CMD ID), located in lower 32bit */
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_BITPOS    4
 #define ICP_QAT_HW_DECOMP_20_CONFIG_CSR_MIN_MATCH_CONTROL_MASK      0x1
 

@@ -6,6 +6,9 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 
+/* Device is not available for user space access */
+#define ADF_DEV_LOCKED 0x7FFFFFFFL
+
 #define ADF_NUM_FUNC_PER_DEV 8
 #if KERNEL_VERSION(5, 10, 69) <= LINUX_VERSION_CODE && \
 KERNEL_VERSION(5, 11, 0) > LINUX_VERSION_CODE && \
@@ -485,9 +488,98 @@ void adf_devmgr_get_num_dev(uint32_t *num)
  */
 int adf_dev_in_use(struct adf_accel_dev *accel_dev)
 {
-	return atomic_read(&accel_dev->ref_count) != 0;
+	int ref = atomic_read(&accel_dev->ref_count);
+
+	return ref != 0 && ref != ADF_DEV_LOCKED;
 }
 EXPORT_SYMBOL_GPL(adf_dev_in_use);
+
+/**
+ * adf_dev_lock() - Trying to lock accel_dev
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * To be used by QAT device specific drivers.
+ *
+ * Return: true when device is locked, false otherwise.
+ */
+bool adf_dev_lock(struct adf_accel_dev *accel_dev)
+{
+	int ref = 0;
+
+	/* Atomic operation may fail, it means that either some other thread
+	 * locked the device or device is already in use
+	 */
+	return atomic_try_cmpxchg(&accel_dev->ref_count, &ref, ADF_DEV_LOCKED);
+}
+EXPORT_SYMBOL_GPL(adf_dev_lock);
+
+/**
+ * adf_dev_unlock() - Trying to unlock accel_dev
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * To be used by QAT device specific drivers.
+ *
+ * Return: true when device is unlocked, false otherwise.
+ */
+bool adf_dev_unlock(struct adf_accel_dev *accel_dev)
+{
+	int ref = ADF_DEV_LOCKED;
+
+	/* Atomic operation should not fail, as only one thread can lock */
+	return atomic_try_cmpxchg(&accel_dev->ref_count, &ref, 0);
+}
+EXPORT_SYMBOL_GPL(adf_dev_unlock);
+
+static bool adf_try_ref_inc(struct adf_accel_dev *accel_dev)
+{
+	int ref = 0;
+
+	do {
+		ref = atomic_read(&accel_dev->ref_count);
+
+		/* While trying to get device it may become busy */
+		if (ref == ADF_DEV_LOCKED) {
+			dev_warn(&GET_DEV(accel_dev),
+				 "qat_dev%d is in reset, cannot be used\n",
+				 accel_dev->accel_id);
+			return false;
+		}
+	/* Atomic operation may fail due to other thread changing
+	 * the ref_counter, repeat till success
+	 */
+	} while (!atomic_try_cmpxchg(&accel_dev->ref_count, &ref, ref + 1));
+
+	return true;
+}
+
+static bool adf_try_ref_dec(struct adf_accel_dev *accel_dev)
+{
+	int ref = 0;
+
+	do {
+		ref = atomic_read(&accel_dev->ref_count);
+
+		if (ref == 0) {
+			dev_err(&GET_DEV(accel_dev),
+				"qat_dev%d ref_count is 0, cannot be released\n",
+				accel_dev->accel_id);
+			return false;
+		}
+
+		/* While trying to put device it may become busy */
+		if (ref == ADF_DEV_LOCKED) {
+			dev_warn(&GET_DEV(accel_dev),
+				 "qat_dev%d is in reset, cannot be released\n",
+				 accel_dev->accel_id);
+			return false;
+		}
+	/* Atomic operation may fail due to other thread changing
+	 * the ref_counter, repeat till success
+	 */
+	} while (!atomic_try_cmpxchg(&accel_dev->ref_count, &ref, ref - 1));
+
+	return true;
+}
 
 /**
  * adf_dev_get() - Increment accel_dev reference count
@@ -507,15 +599,19 @@ int adf_dev_get(struct adf_accel_dev *accel_dev)
 	struct adf_accel_dev *pf_accel_dev = NULL;
 	struct pci_dev *pf_pci_dev = NULL;
 
-	if (atomic_add_return(1, &accel_dev->ref_count) == 1) {
-		if (!try_module_get(accel_dev->owner))
-			return -EFAULT;
-		if (accel_dev->is_vf) {
-			pf_pci_dev = accel_dev->accel_pci_dev.pci_dev->physfn;
-			pf_accel_dev = adf_devmgr_pci_to_accel_dev(pf_pci_dev);
-			if (pf_accel_dev)
-				return adf_dev_get(pf_accel_dev);
-		}
+	if (!adf_try_ref_inc(accel_dev))
+		return -EBUSY;
+
+	if (!try_module_get(accel_dev->owner)) {
+		adf_try_ref_dec(accel_dev);
+		return -EFAULT;
+	}
+
+	if (accel_dev->is_vf) {
+		pf_pci_dev = accel_dev->accel_pci_dev.pci_dev->physfn;
+		pf_accel_dev = adf_devmgr_pci_to_accel_dev(pf_pci_dev);
+		if (pf_accel_dev)
+			return adf_dev_get(pf_accel_dev);
 	}
 	return 0;
 }
@@ -539,14 +635,15 @@ void adf_dev_put(struct adf_accel_dev *accel_dev)
 	struct adf_accel_dev *pf_accel_dev = NULL;
 	struct pci_dev *pf_pci_dev = NULL;
 
-	if (atomic_sub_return(1, &accel_dev->ref_count) == 0) {
-		module_put(accel_dev->owner);
-		if (accel_dev->is_vf) {
-			pf_pci_dev = accel_dev->accel_pci_dev.pci_dev->physfn;
-			pf_accel_dev = adf_devmgr_pci_to_accel_dev(pf_pci_dev);
-			if (pf_accel_dev)
-				adf_dev_put(pf_accel_dev);
-		}
+	if (!adf_try_ref_dec(accel_dev))
+		return;
+
+	module_put(accel_dev->owner);
+	if (accel_dev->is_vf) {
+		pf_pci_dev = accel_dev->accel_pci_dev.pci_dev->physfn;
+		pf_accel_dev = adf_devmgr_pci_to_accel_dev(pf_pci_dev);
+		if (pf_accel_dev)
+			adf_dev_put(pf_accel_dev);
 	}
 }
 EXPORT_SYMBOL_GPL(adf_dev_put);
@@ -632,10 +729,8 @@ adf_devmgr_get_dev_by_bdf(struct adf_pci_address *pci_addr)
 		}
 	}
 	mutex_unlock(&table_lock);
-	if (dev_found) {
-		adf_dev_get(accel_dev);
+	if (dev_found && !adf_dev_get(accel_dev))
 		return accel_dev;
-	}
 
 	return NULL;
 }
@@ -669,10 +764,8 @@ adf_devmgr_get_dev_by_pci_domain_bus(struct adf_pci_address *pci_addr)
 		}
 	}
 	mutex_unlock(&table_lock);
-	if (dev_found) {
-		adf_dev_get(accel_dev);
+	if (dev_found && !adf_dev_get(accel_dev))
 		return accel_dev;
-	}
 
 	return NULL;
 }

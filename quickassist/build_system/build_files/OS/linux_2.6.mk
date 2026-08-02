@@ -34,7 +34,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ######
 ######
 #path to production header files and to add another "-I<path to another directory of include files>"
@@ -71,3 +71,4 @@ EXTRA_CFLAGS += --sysroot=$(SYSROOT)
 LIB_SHARED_FLAGS += --sysroot=$(SYSROOT)
 EXE_FLAGS += --sysroot=$(SYSROOT)
 endif
+ccflags-y+=$(EXTRA_CFLAGS)

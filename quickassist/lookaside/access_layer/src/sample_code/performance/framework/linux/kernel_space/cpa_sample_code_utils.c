@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 /**
@@ -133,7 +133,7 @@ unsigned long long __umoddi3(unsigned long long dividend,
 #endif
 #endif
 
-static void __inline__ sampleCodeCpuid(void)
+static __inline__ void sampleCodeCpuid(void)
 {
 #if defined(__INTEL_COMPILER)
     unsigned int a = 0x00, b = 0x00;

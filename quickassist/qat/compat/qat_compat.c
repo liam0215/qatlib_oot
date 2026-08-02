@@ -422,7 +422,7 @@ void kfree_sensitive(const void *p)
 #endif /* 5.9.x and older */
 
 #if (KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE) || \
-(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) == RHEL_RELEASE_CODE)
+(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) <= RHEL_RELEASE_CODE)
 static int pcie_aer_is_native(struct pci_dev *dev)
 {
 	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);

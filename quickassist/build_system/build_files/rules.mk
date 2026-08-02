@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ####################
 
 
@@ -52,6 +52,8 @@ ifeq ($($(PROG_ACY)_DEBUG),y)
 EXTRA_CFLAGS+=-D$(PROG_ACY)_DEBUG
 endif
 
+ccflags-y+=$(EXTRA_CFLAGS)
+
 # create .o's from the list of source files
 # and keep only the name of the files
 OBJECTS=$(notdir $(foreach file,$(SOURCES),$(file:.c=.o)))
@@ -63,7 +65,7 @@ LIB_SHARED=$(OUTPUT_NAME)_s.so
 EXECUTABLE=$(OUTPUT_NAME)
 
 LIB_STATIC=$(OUTPUT_NAME).a
-MODULENAME=$(OUTPUT_NAME).o
+MODULENAME=$(OUTPUT_NAME).ko
 
 obj: dirs $(OBJECTS)
 $(OBJECTS): | dirs

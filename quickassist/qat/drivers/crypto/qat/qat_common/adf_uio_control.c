@@ -204,8 +204,6 @@ static void bundle_kobject_free(struct kobject *kobj)
 	bundle->uio_priv.accel = NULL;
 	kfree(bundle->uio_info.name);
 	kfree(bundle->uio_info.mem[0].name);
-	if (bundle->vma && bundle->vma->vm_private_data)
-		bundle->vma->vm_private_data = NULL;
 	kfree(bundle);
 }
 
@@ -271,8 +269,7 @@ int adf_uio_sysfs_create(struct adf_accel_dev *accel_dev)
 				   "uio_ctrl");
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "kobject_init_and_add failed for uio_ctrl\n");
-		kfree(accel);
-		accel_dev->accel = NULL;
+		kobject_put(&accel->kobj);
 		mutex_unlock(&uio_lock);
 		return ret;
 	}
@@ -333,7 +330,7 @@ int adf_uio_sysfs_bundle_create(struct pci_dev *pdev,
 	if (ret) {
 		dev_err(&GET_DEV(accel_dev), "kobject_init_and_add failed for bundle\n");
 		accel->bundle[bundle_num] = NULL;
-		kfree(bundle);
+		kobject_put(&bundle->kobj);
 		return ret;
 	}
 

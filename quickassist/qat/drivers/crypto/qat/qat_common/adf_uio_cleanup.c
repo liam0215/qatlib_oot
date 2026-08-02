@@ -283,6 +283,7 @@ void adf_uio_do_cleanup_orphan(struct uio_info *info,
 	struct qat_uio_bundle_dev *priv = info->priv;
 	struct adf_uio_control_bundle *bundle = priv->bundle;
 	struct adf_uio_instance_rings *instance_rings, *tmp;
+	int pid_found = 0;
 
 	ret = get_orphan_bundle(info, accel, &orphan, pid);
 	if (ret < 0) {
@@ -298,8 +299,17 @@ void adf_uio_do_cleanup_orphan(struct uio_info *info,
 	 * default value. Driver only needs to reset ring mask
 	 */
 	if (hw_data->ring_pair_reset) {
+		/* Disable ring interrupts for VF */
+		if (hw_data->mask_rp_irqs)
+			hw_data->mask_rp_irqs(accel_dev, hw_data->rp_mask);
+
 		hw_data->ring_pair_reset(accel_dev,
 					 orphan->bundle->hardware_bundle_number);
+
+		/* Enable ring interrupts for VF */
+		if (hw_data->mask_rp_irqs)
+			hw_data->mask_rp_irqs(accel_dev, 0x0);
+
 		mutex_lock(&orphan->bundle->lock);
 		/*
 		 * If processes exit normally, rx_mask, tx_mask
@@ -336,11 +346,15 @@ out:
 	mutex_lock(&bundle->list_lock);
 	list_for_each_entry_safe(instance_rings, tmp, &bundle->list, list) {
 		if (instance_rings->user_pid == pid) {
-			bundle->rings_used &= ~instance_rings->ring_mask;
-			list_del(&instance_rings->list);
-			kfree(instance_rings);
+			pid_found = 1;
 			break;
 		}
 	}
 	mutex_unlock(&bundle->list_lock);
+
+	if (pid_found) {
+		mutex_lock(&bundle->lock);
+		bundle->rings_used &= ~instance_rings->ring_mask;
+		mutex_unlock(&bundle->lock);
+	}
 }

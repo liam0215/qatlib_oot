@@ -625,10 +625,10 @@ ac_header_list=
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
-ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_FALSE
-ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_TRUE
 KAPI_AC_FALSE
 KAPI_AC_TRUE
+ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_FALSE
+ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_TRUE
 QAE_USE_128K_SLABS_AC_FALSE
 QAE_USE_128K_SLABS_AC_TRUE
 ICP_THREAD_SPECIFIC_USDM_AC_FALSE
@@ -1510,7 +1510,7 @@ Optional Features:
   --enable-icp-debug      Enables debugging.
   --disable-param-check   Disables parameters checking in the top-level APIs
                           (Use for performance optimization).
-  --disable-dc-dyn        Disables Dynamic commpression support.
+  --disable-dc-dyn        Disables Dynamic compression support.
   --disable-stats         Disables statistic collection (Use for performance
                           optimization).
   --enable-icp-log-syslog Enables debugging messages to be outputted to the
@@ -7747,6 +7747,7 @@ else
         #include <stdio.h>
         #include <string.h>
         #include <zlib.h>
+        #include <stdlib.h>
 
         #define DATA "conftest.zlib"
 
@@ -9681,10 +9682,11 @@ if test "${enable_icp_without_qp_submission_lock+set}" = set; then :
   enableval=$enable_icp_without_qp_submission_lock; icp_without_qp_submission_lock=true
 else
   icp_without_qp_submission_lock=false
+
 fi
 
 echo ICP_WITHOUT_QP_SUBMISSION_LOCK [$icp_without_qp_submission_lock] >> $ENV_STATUS_FILE
-if test x$icp_without_qp_submission_lock = xtrue; then
+ if test x$icp_without_qp_submission_lock = xtrue; then
   ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_TRUE=
   ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_FALSE='#'
 else
@@ -9692,27 +9694,28 @@ else
   ICP_WITHOUT_QP_SUBMISSION_LOCK_AC_FALSE=
 fi
 
+
 # KAPI
 # Check whether --enable-kapi was given.
-if test ${enable_kapi+y}
-then :
+if test "${enable_kapi+set}" = set; then :
   enableval=$enable_kapi; case "${enableval}" in
         yes) KAPI=true;;
          no) KAPI=false;;
           *) as_fn_error $? "Invalid configure option --enable-kapi=\"${enableval}\"" "$LINENO" 5;;
     esac
-else $as_nop
+else
   KAPI=false
 
 fi
 
-if test x$KAPI = xtrue; then
+ if test x$KAPI = xtrue; then
   KAPI_AC_TRUE=
   KAPI_AC_FALSE='#'
 else
   KAPI_AC_TRUE='#'
   KAPI_AC_FALSE=
 fi
+
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure

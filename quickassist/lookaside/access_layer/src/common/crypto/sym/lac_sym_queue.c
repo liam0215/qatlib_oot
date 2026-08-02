@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -83,6 +83,7 @@ CpaStatus LacSymQueue_RequestSend(const CpaInstanceHandle instanceHandle,
     CpaStatus status = CPA_STATUS_SUCCESS;
     CpaBoolean enqueued = CPA_FALSE;
     sal_crypto_service_t *pService = (sal_crypto_service_t *)instanceHandle;
+    Cpa64U seq_num = ICP_ADF_INVALID_SEND_SEQ;
     /* Enqueue the message instead of sending directly if:
      * (i) a blocking operation is in progress
      * (ii) there are previous requests already in the queue
@@ -139,7 +140,7 @@ CpaStatus LacSymQueue_RequestSend(const CpaInstanceHandle instanceHandle,
          */
         if (CPA_CY_SYM_PACKET_TYPE_FULL != pRequest->pOpData->packetType)
         {
-            /* Select blocking operations which this reqest will complete */
+            /* Select blocking operations which this request will complete */
             pSessionDesc->nonBlockingOpsInProgress = CPA_FALSE;
         }
 
@@ -170,13 +171,16 @@ CpaStatus LacSymQueue_RequestSend(const CpaInstanceHandle instanceHandle,
                                        (void *)&(pRequest->qatMsg),
                                        LAC_QAT_SYM_REQ_SZ_LW,
                                        LAC_LOG_MSG_SYMCYBULK,
-                                       NULL);
-        /* if fail to send request, we need to change nonBlockingOpsInProgress
-         * to CPA_TRUE
-         */
-        if ((CPA_STATUS_SUCCESS != status) &&
-            (CPA_CY_SYM_PACKET_TYPE_FULL != pRequest->pOpData->packetType))
+                                       &seq_num);
+        if (CPA_STATUS_SUCCESS == status)
         {
+            LAC_MEM_POOL_BLK_SET_OPAQUE(pRequest, seq_num);
+        }
+        else if ((CPA_CY_SYM_PACKET_TYPE_FULL != pRequest->pOpData->packetType))
+        {
+            /* if fail to send request, we need to change
+             * nonBlockingOpsInProgress to CPA_TRUE
+             */
             pSessionDesc->nonBlockingOpsInProgress = CPA_TRUE;
         }
     }

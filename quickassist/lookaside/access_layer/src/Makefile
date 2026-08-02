@@ -33,7 +33,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ###############################################################################
 
 # Ensure The ICP_ENV_DIR environmental var is defined.
@@ -134,9 +134,9 @@ LAC-kernel_module:lib_kernel
 	@echo 'Creating kernel module'; \
 	echo '*** NOTE: Filtering of link-warnings enabled (ixOsal, QatComms) ***';\
 	$(MAKE) -C $(KERNEL_SOURCE_ROOT)/ M=$(PWD) 2>&1 | grep \
-        -i -v -e "^\*\*\* Warning: \"ixOsal.*\" \[$(PWD)/lac.ko\] undefined\!" \
-        -i -v -e "^\*\*\* Warning: \"QatComms.*\" \[$(PWD)/lac.ko\] undefined\!" \
-		-i -v -e "^\*\*\* Warning: \"icp_Qatal.*\" \[$(PWD)/lac.ko\] undefined\!"; \
+        -i -v -e "^\*\*\* Warning: \"ixOsal.*\" \[$(PWD)/lac.ko\] undefined!" \
+        -i -v -e "^\*\*\* Warning: \"QatComms.*\" \[$(PWD)/lac.ko\] undefined!" \
+		-i -v -e "^\*\*\* Warning: \"icp_Qatal.*\" \[$(PWD)/lac.ko\] undefined!"; \
 	echo "Copying outputs to $(ICP_BUILD_OUTPUT_DIR)";\
 	test -d $(ICP_BUILD_OUTPUT_DIR) || mkdir -p $(ICP_BUILD_OUTPUT_DIR);\
 	test -f lib.a  &&  mv lib.a $(ICP_BUILD_OUTPUT_DIR)/$(LIB_STATIC);\

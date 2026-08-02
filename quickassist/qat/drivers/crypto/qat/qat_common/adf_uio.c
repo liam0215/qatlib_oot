@@ -141,7 +141,7 @@ int adf_ctl_ioctl_reserve_ring(unsigned long arg)
 	struct adf_user_reserve_ring reserve;
 	struct adf_uio_control_bundle *bundle;
 	struct adf_uio_instance_rings *instance_rings = NULL;
-	int pid_entry_found;
+	int pid_entry_found = 0;
 
 	if (copy_from_user(&reserve, (void __user *)arg,
 			   sizeof(struct adf_user_reserve_ring))) {
@@ -162,7 +162,6 @@ int adf_ctl_ioctl_reserve_ring(unsigned long arg)
 	}
 
 	/* Find the list entry for this process */
-	pid_entry_found = 0;
 	mutex_lock(&bundle->list_lock);
 	list_for_each_entry(instance_rings, &bundle->list, list) {
 		if (instance_rings->user_pid == current->tgid) {
@@ -173,14 +172,8 @@ int adf_ctl_ioctl_reserve_ring(unsigned long arg)
 	mutex_unlock(&bundle->list_lock);
 
 	if (!pid_entry_found) {
-		instance_rings = kzalloc(sizeof(*instance_rings), GFP_KERNEL);
-		if (!instance_rings)
-			return -ENOMEM;
-		instance_rings->user_pid = current->tgid;
-		instance_rings->ring_mask = 0;
-		mutex_lock(&bundle->list_lock);
-		list_add_tail(&instance_rings->list, &bundle->list);
-		mutex_unlock(&bundle->list_lock);
+		pr_err("QAT: process %d not found\n", current->tgid);
+		return -EINVAL;
 	}
 
 	instance_rings->ring_mask |= reserve.ring_mask;
@@ -237,12 +230,6 @@ int adf_ctl_ioctl_release_ring(unsigned long arg)
 	mutex_lock(&bundle->lock);
 	bundle->rings_used &= ~reserve.ring_mask;
 	mutex_unlock(&bundle->lock);
-	if (!instance_rings->ring_mask) {
-		mutex_lock(&bundle->list_lock);
-		list_del(&instance_rings->list);
-		mutex_unlock(&bundle->list_lock);
-		kfree(instance_rings);
-	}
 
 	return 0;
 }
@@ -324,7 +311,8 @@ static int adf_uio_open(struct uio_info *info, struct inode *inode)
 	struct adf_accel_dev *accel_dev = priv->accel->accel_dev;
 	u32 bundle_nr = priv->hardware_bundle_number;
 
-	adf_dev_get(accel_dev);
+	if (adf_dev_get(accel_dev))
+		return -EFAULT;
 
 	if (!accel_dev->svm_enabled)
 		return 0;
@@ -346,6 +334,8 @@ static int adf_uio_release(struct uio_info *info, struct inode *inode)
 	struct qat_uio_bundle_dev *priv = info->priv;
 	struct adf_accel_dev *accel_dev = priv->accel->accel_dev;
 	u32 bundle_nr = priv->hardware_bundle_number;
+
+	adf_dev_put(accel_dev);
 
 	if (!accel_dev->svm_enabled)
 		return 0;
@@ -397,6 +387,23 @@ static int adf_uio_remap_bar(struct adf_accel_dev *accel_dev,
 	return 0;
 }
 
+static void adf_uio_bundle_reset(struct adf_uio_control_bundle *bundle)
+{
+	if (!bundle)
+		return;
+
+	/* There is an open mapping to that bundle */
+	if (bundle->vma) {
+		if (bundle->vma->vm_private_data)
+			bundle->vma->vm_private_data = NULL;
+		bundle->vma = NULL;
+	}
+	/* Decrease a reference counter for the bundle kobj. */
+	adf_uio_bundle_unref(bundle);
+	/* Decrease a reference counter for the accel kobj. */
+	adf_uio_accel_unref(bundle->uio_priv.accel);
+}
+
 void adf_uio_mmap_close_fixup(struct adf_accel_dev *accel_dev)
 {
 	struct adf_uio_control_accel *accel;
@@ -408,10 +415,16 @@ void adf_uio_mmap_close_fixup(struct adf_accel_dev *accel_dev)
 	for (i = 0; i < nb_bundles; i++) {
 		if (!accel->bundle[i]->vma)
 			continue;
-		adf_uio_bundle_unref(accel->bundle[i]);
-		adf_uio_accel_unref(accel);
+		dev_err(&GET_DEV(accel_dev), "Reset bundle%d\n", i);
+		adf_uio_bundle_reset(accel->bundle[i]);
+		/* There may be ref_count mismatch due to open FD */
 		adf_dev_put(accel_dev);
 	}
+
+	/* Lock the device to prevent any user space access */
+	if (!adf_dev_lock(accel_dev))
+		dev_err(&GET_DEV(accel_dev), "Device cannot be locked\n");
+
 	mutex_unlock(&uio_lock);
 }
 
@@ -421,6 +434,8 @@ static void adf_uio_mmap_close(struct vm_area_struct *vma)
 {
 	struct uio_info *info = vma->vm_private_data;
 	struct qat_uio_bundle_dev *priv;
+	struct adf_uio_control_bundle *bundle;
+	struct adf_uio_instance_rings *instance_rings, *tmp;
 
 	if (!info)
 		return;
@@ -428,24 +443,49 @@ static void adf_uio_mmap_close(struct vm_area_struct *vma)
 	mutex_lock(&uio_lock);
 	priv = info->priv;
 
+	/* Prevent multiple unmap calls */
 	if (!priv->bundle->vma) {
 		mutex_unlock(&uio_lock);
 		return;
 	}
+
+	/*
+	 * Walk the instance list, if process not found but
+	 * vma is found, apply pid fixup
+	 */
+	bundle = priv->bundle;
+	mutex_lock(&bundle->list_lock);
+	list_for_each_entry(instance_rings, &bundle->list, list) {
+		if (instance_rings->user_pid == current->tgid) {
+			break;
+		} else if (instance_rings->vma == (uintptr_t)vma) {
+			/* user_pid fixup */
+			instance_rings->user_pid = current->tgid;
+			break;
+		}
+	}
+	mutex_unlock(&bundle->list_lock);
+
 	/* Ensure that an uncontrolled device removal did not occur */
 	if (priv->accel && priv->accel->accel_dev) {
 		adf_uio_do_cleanup_orphan(info, priv->accel,
 					  current->tgid,
 					  current->comm);
-		adf_dev_put(priv->accel->accel_dev);
 	}
 
-	/* Decrease a reference counter for the accel kobj. */
-	adf_uio_accel_unref(priv->accel);
-	/* Decrease a reference counter for the bundle kobj. */
-	adf_uio_bundle_unref(priv->bundle);
+	mutex_lock(&bundle->list_lock);
+	list_for_each_entry_safe(instance_rings, tmp, &bundle->list, list) {
+		if (instance_rings->user_pid == current->tgid) {
+			list_del(&instance_rings->list);
+			kfree(instance_rings);
+			break;
+		}
+	}
+	mutex_unlock(&bundle->list_lock);
 
-	priv->bundle->vma = NULL;
+	/* Reset UIO bundle */
+	adf_uio_bundle_reset(bundle);
+
 	mutex_unlock(&uio_lock);
 }
 
@@ -476,39 +516,89 @@ static int adf_uio_mmap(struct uio_info *info, struct vm_area_struct *vma)
 {
 	int mi;
 	struct uio_mem *mem;
-	struct qat_uio_bundle_dev *priv = info->priv;
+	struct qat_uio_bundle_dev *priv;
+	struct adf_uio_instance_rings *instance_rings;
+	struct adf_uio_control_bundle *bundle;
+	int ret = -EINVAL;
+
+	if (!info)
+		return -EINVAL;
+
+	if (!vma)
+		return -EINVAL;
+
+	/* Protection from parallel mmap calls */
+	mutex_lock(&uio_lock);
+
+	priv = info->priv;
+	if (!priv)
+		goto out;
+
+	bundle = priv->bundle;
+	if (!bundle)
+		goto out;
+
+	/* Prevent multiple mmap calls on the same bundle */
+	if (bundle->vma) {
+		pr_err("QAT: cannot mmap the same UIO device twice.\n");
+		goto out;
+	}
 
 	if (vma->vm_start > vma->vm_end)
-		return -EINVAL;
+		goto out;
 
 	vma->vm_private_data = info;
 	mi = find_mem_index(vma);
 	if (mi < 0)
-		return -EINVAL;
+		goto out;
 
 	/*  only support PHYS type here  */
 	if (info->mem[mi].memtype != UIO_MEM_PHYS)
-		return -EINVAL;
+		goto out;
 
 	if ((vma->vm_end - vma->vm_start) > info->mem[mi].size) {
 		pr_err("QAT: requested size out of range.\n");
-		return -EINVAL;
+		goto out;
 	}
+
+	instance_rings = kzalloc(sizeof(*instance_rings), GFP_KERNEL);
+	if (!instance_rings) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	instance_rings->user_pid = current->tgid;
+	instance_rings->ring_mask = 0;
+	instance_rings->vma = (uintptr_t)vma;
+	mutex_lock(&bundle->list_lock);
+	list_add_tail(&instance_rings->list, &bundle->list);
+	mutex_unlock(&bundle->list_lock);
 
 	/* Increment a reference counter for the accel object. */
 	adf_uio_accel_ref(priv->accel);
 	/* Increment a reference counter for the bundle object. */
 	adf_uio_bundle_ref(priv->bundle);
+	/* Store VMA pointer for a forced shutdown scenario */
 	priv->bundle->vma = vma;
 	mem = info->mem + mi;
 	vma->vm_ops = &adf_uio_mmap_operation;
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	return remap_pfn_range(vma,
-			       vma->vm_start,
-			       mem->addr >> PAGE_SHIFT,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot);
+	ret = remap_pfn_range(vma,
+			      vma->vm_start,
+			      mem->addr >> PAGE_SHIFT,
+			      vma->vm_end - vma->vm_start,
+			      vma->vm_page_prot);
+	if (ret) {
+		mutex_lock(&bundle->list_lock);
+		list_del(&instance_rings->list);
+		mutex_unlock(&bundle->list_lock);
+		kfree(instance_rings);
+	}
+
+out:
+	mutex_unlock(&uio_lock);
+	return ret;
 }
 
 static irqreturn_t adf_uio_isr_bundle(int irq, struct uio_info *info)
@@ -516,36 +606,66 @@ static irqreturn_t adf_uio_isr_bundle(int irq, struct uio_info *info)
 	struct qat_uio_bundle_dev *priv = info->priv;
 	struct adf_accel_dev *accel_dev = priv->accel->accel_dev;
 	struct adf_etr_data *etr_data = accel_dev->transport;
-	struct adf_etr_bank_data *bank =
+	struct adf_etr_bank_data *current_bank =
 		&etr_data->banks[priv->hardware_bundle_number];
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_info.csr_ops;
 	int int_active_bundles = 0;
+	int int_active_bundles_exit = 0;
+	int handled = 0;
+	int i;
 
-	/* For vf, all bundls share the same MSI irq, but only the active */
-	/* bundle's event will be handled */
-	if (accel_dev->is_vf) {
-		if (hw_data->get_int_active_bundles)
-			int_active_bundles =
-				hw_data->get_int_active_bundles(accel_dev);
-
-		/* Interrupt happened on this bundle */
-		if (int_active_bundles & (1 << bank->bank_number)) {
-			csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
-							    bank->bank_number,
-							    0);
-		}
-
-		/* Wake up the process to re-enable the shared MSI. This takes
-		 * place even so it did not happen on this bundle.
-		 */
+	if (!accel_dev->is_vf) {
+		csr_ops->write_csr_int_flag_and_col(current_bank->csr_addr,
+						    current_bank->bank_number,
+						    0);
 		return IRQ_HANDLED;
 	}
-	csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
-					    bank->bank_number,
-					    0);
 
-	return IRQ_HANDLED;
+	if (!hw_data->get_int_active_bundles)
+		return IRQ_NONE;
+
+	/*
+	 * For VF, all bundles share the same MSI IRQ. The UIO handler is triggered
+	 * once per bank in random order. To avoid missed IRQs, each handler checks
+	 * all bundles for active interrupts. Only the dedicated handler notifies
+	 * its UIO fd based on its bank's event_pending flag (which may have been
+	 * set by any handler thread).
+	 */
+	spin_lock(&accel_dev->vf2pf_csr_lock);
+
+	int_active_bundles_exit =
+		hw_data->get_int_active_bundles(accel_dev);
+	do {
+		int_active_bundles = int_active_bundles_exit;
+
+		for (i = 0; i < GET_MAX_BANKS(accel_dev); i++) {
+			struct adf_etr_bank_data *bank = &etr_data->banks[i];
+
+			/* Mask IRQ and reset timer for each active bank */
+			if (int_active_bundles & BIT(i)) {
+				csr_ops->write_csr_int_flag_and_col(bank->csr_addr,
+								    bank->bank_number,
+								    0);
+				bank->event_pending = true;
+			}
+		}
+
+		/* Check again before exiting and repeat if changed */
+		int_active_bundles_exit =
+			hw_data->get_int_active_bundles(accel_dev);
+	} while (int_active_bundles != int_active_bundles_exit);
+
+	/* Handle own event at the very end */
+	if (current_bank->event_pending) {
+		current_bank->event_pending = false;
+		/* Wake up the process to re-enable the shared MSI. */
+		handled = 1;
+	}
+
+	spin_unlock(&accel_dev->vf2pf_csr_lock);
+
+	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int adf_uio_init_bundle_dev(struct adf_accel_dev *accel_dev,

@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -258,14 +258,53 @@ STATIC void SalCtrl_CyUpdatePoolsBusy(sal_service_t *service)
             case SAL_SERVICE_TYPE_CRYPTO_ASYM:
                 LacSwResp_IncNumPoolsBusy(pCryptoService->lac_pke_req_pool);
                 break;
+            case SAL_SERVICE_TYPE_CRYPTO_SYM:
+                LacSwResp_IncNumPoolsBusy(pCryptoService->lac_sym_cookie_pool);
+                break;
             case SAL_SERVICE_TYPE_CRYPTO:
                 LacSwResp_IncNumPoolsBusy(pCryptoService->lac_pke_req_pool);
+                LacSwResp_IncNumPoolsBusy(pCryptoService->lac_sym_cookie_pool);
                 break;
             default:
                 break;
         }
     }
     return;
+}
+
+STATIC
+CpaStatus SalCtrl_CyGenResponseCrypto(sal_crypto_service_t *crypto_handle)
+{
+    CpaStatus status = CPA_STATUS_RETRY;
+    CpaStatus asymStatus = CPA_STATUS_RETRY;
+
+    status = LacSwResp_GenResp(crypto_handle->lac_sym_cookie_pool,
+                               SAL_SERVICE_TYPE_CRYPTO_SYM);
+    if ((CPA_STATUS_SUCCESS != status) && (CPA_STATUS_RETRY != status))
+    {
+        LAC_LOG_ERROR1("Failed to generate SYM SW responses with status %d\n",
+                       status);
+    }
+    else
+    {
+        asymStatus = LacSwResp_GenResp(crypto_handle->lac_pke_req_pool,
+                                       SAL_SERVICE_TYPE_CRYPTO_ASYM);
+        if ((CPA_STATUS_SUCCESS != asymStatus) &&
+            (CPA_STATUS_RETRY != asymStatus))
+        {
+            LAC_LOG_ERROR1(
+                "Failed to generate ASYM SW responses with status %d\n",
+                asymStatus);
+            status = asymStatus;
+        }
+        else
+        {
+            if (CPA_STATUS_SUCCESS == status ||
+                CPA_STATUS_SUCCESS == asymStatus)
+                status = CPA_STATUS_SUCCESS;
+        }
+    }
+    return status;
 }
 
 /* Generates dummy responses when the device is in error state */
@@ -277,9 +316,8 @@ CpaStatus SalCtrl_CyGenResponses(sal_crypto_service_t *crypto_handle,
     switch (gen_handle->type)
     {
         case SAL_SERVICE_TYPE_CRYPTO_ASYM:
-            status =
-                LacSwResp_GenResp(crypto_handle->lac_pke_req_pool,
-                                  crypto_handle->generic_service_info.type);
+            status = LacSwResp_GenResp(crypto_handle->lac_pke_req_pool,
+                                       gen_handle->type);
             if ((CPA_STATUS_SUCCESS != status) && (CPA_STATUS_RETRY != status))
             {
                 LAC_LOG_ERROR1(
@@ -288,27 +326,22 @@ CpaStatus SalCtrl_CyGenResponses(sal_crypto_service_t *crypto_handle,
             }
             break;
         case SAL_SERVICE_TYPE_CRYPTO_SYM:
-            break;
-        case SAL_SERVICE_TYPE_CRYPTO:
-            status =
-                LacSwResp_GenResp(crypto_handle->lac_pke_req_pool,
-                                  crypto_handle->generic_service_info.type);
+            status = LacSwResp_GenResp(crypto_handle->lac_sym_cookie_pool,
+                                       gen_handle->type);
             if ((CPA_STATUS_SUCCESS != status) && (CPA_STATUS_RETRY != status))
             {
                 LAC_LOG_ERROR1(
-                    "Failed to generate ASYM SW responses with status %d\n",
+                    "Failed to generate SYM SW responses with status %d\n",
                     status);
             }
+            break;
+        case SAL_SERVICE_TYPE_CRYPTO:
+            status = SalCtrl_CyGenResponseCrypto(crypto_handle);
             break;
         default:
             break;
     }
 
-    if ((CPA_STATUS_SUCCESS != status) && (CPA_STATUS_RETRY != status))
-    {
-        LAC_LOG_ERROR1("Failed to generate SW responses with status %d\n",
-                       status);
-    }
     return status;
 }
 
@@ -1859,7 +1892,7 @@ STATIC CpaStatus SalCtrl_SymInit(icp_accel_dev_t *device,
         ((numSymConcurrentReq + numSymConcurrentReq + 1) << 1),
         sizeof(lac_sym_cookie_t),
         LAC_64BYTE_ALIGNMENT,
-        CPA_FALSE,
+        CPA_TRUE,
         pCryptoService->nodeAffinity);
     LAC_CHECK_STATUS_SYM_INIT(status);
     /* For all sym cookies fill out the physical address of data that
@@ -2948,7 +2981,7 @@ CpaStatus cpaCyGetInstances(Cpa16U numInstances,
  * @ingroup cpaCyCommon
  *****************************************************************************/
 CpaStatus cpaCyInstanceGetInfo(const CpaInstanceHandle instanceHandle_in,
-                               struct _CpaInstanceInfo *pInstanceInfo)
+                               CpaInstanceInfo *pInstanceInfo)
 {
     CpaInstanceHandle instanceHandle = NULL;
     sal_crypto_service_t *pCryptoService = NULL;
@@ -3471,25 +3504,38 @@ CpaStatus Lac_CyPollAllBanks_GenResponses(icp_accel_dev_t *accel_dev,
 {
     sal_t *service_container = NULL;
     CpaStatus status = CPA_STATUS_SUCCESS;
+    CpaStatus symStatus = CPA_STATUS_SUCCESS;
     service_container = accel_dev->pSalHandle;
 
     if (SalCtrl_IsServiceEnabled(enabled_services,
                                  SAL_SERVICE_TYPE_CRYPTO_ASYM))
     {
         status = Lac_CyService_GenResponses(&service_container->asym_services);
-        if (CPA_STATUS_SUCCESS != status)
+        if (CPA_STATUS_SUCCESS != status && CPA_STATUS_RETRY != status)
         {
             LAC_LOG_ERROR(
                 "Failed to generate dummy responses for asym service");
             return status;
         }
     }
-
-    if (SalCtrl_IsServiceEnabled(enabled_services, SAL_SERVICE_TYPE_CRYPTO))
+    if (SalCtrl_IsServiceEnabled(enabled_services, SAL_SERVICE_TYPE_CRYPTO_SYM))
+    {
+        symStatus =
+            Lac_CyService_GenResponses(&service_container->sym_services);
+        if (CPA_STATUS_SUCCESS != symStatus && CPA_STATUS_RETRY != symStatus)
+        {
+            LAC_LOG_ERROR("Failed to generate dummy responses for sym service");
+            return symStatus;
+        }
+        if (CPA_STATUS_SUCCESS == status || CPA_STATUS_SUCCESS == symStatus)
+            status = CPA_STATUS_SUCCESS;
+    }
+    else if (SalCtrl_IsServiceEnabled(enabled_services,
+                                      SAL_SERVICE_TYPE_CRYPTO))
     {
         status =
             Lac_CyService_GenResponses(&service_container->crypto_services);
-        if (CPA_STATUS_SUCCESS != status)
+        if (CPA_STATUS_SUCCESS != status && CPA_STATUS_RETRY != status)
         {
             LAC_LOG_ERROR(
                 "Failed to generate dummy responses for crypto service");

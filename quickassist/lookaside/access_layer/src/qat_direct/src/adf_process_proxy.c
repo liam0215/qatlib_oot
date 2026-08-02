@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -212,7 +212,7 @@ int adf_proxy_poll_event(Cpa32U *dev_id, enum adf_event *event)
     char accelIdString[ACCELID_MAX_LEN] = {'\0'};
 
     fd = udev_monitor_get_fd(mon);
-    if (fd > 0)
+    if (fd >= 0 && fd < FD_SETSIZE)
     {
         FD_ZERO(&fds);
         FD_SET(fd, &fds);
@@ -483,6 +483,8 @@ CpaStatus adf_reset_userProxy(void)
     CpaStatus status = CPA_STATUS_SUCCESS;
     init_ctr = 0;
     osalAtomicSet(0, &process_proxy_status);
+    if (process_info_file != -1)
+        close(process_info_file);
     process_info_file = -1;
     /* There is no option to reset the mutex, hence destroying
      * it and re-initializing.

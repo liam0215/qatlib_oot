@@ -535,14 +535,6 @@ static inline void pci_ignore_hotplug(struct pci_dev *dev)
 	iommu_unmap(domain, iova, size)
 #endif
 
-#if KERNEL_VERSION(3, 2, 0) > LINUX_VERSION_CODE
-#define iommu_domain_alloc(pci_bus_type) \
-	iommu_domain_alloc()
-#else
-#define iommu_domain_alloc(pci_bus_type) \
-	iommu_domain_alloc(pci_bus_type)
-#endif
-
 #if KERNEL_VERSION(5, 0, 0) > LINUX_VERSION_CODE
 #define device_iommu_mapped(dev) ((dev)->iommu_group)
 #endif
@@ -634,7 +626,7 @@ int compact_iommu_dev_disable_feature(struct device *dev,
 #endif
 
 #if (KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE) && \
-	!(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) == RHEL_RELEASE_CODE)
+	!(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) <= RHEL_RELEASE_CODE)
 #undef class_create
 #define class_create(name)		       		\
 ({							\
@@ -648,7 +640,7 @@ void kfree_sensitive(const void *p);
 #endif
 
 #if (KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE) || \
-(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) == RHEL_RELEASE_CODE)
+(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) <= RHEL_RELEASE_CODE)
 #define invalidate_range arch_invalidate_secondary_tlbs
 #define PCI_EXP_AER_FLAGS (PCI_EXP_DEVCTL_CERE | PCI_EXP_DEVCTL_NFERE | \
 			PCI_EXP_DEVCTL_FERE | PCI_EXP_DEVCTL_URRE)
@@ -677,7 +669,8 @@ static inline void kpp_set_reqsize(struct crypto_kpp *kpp,
 
 static inline int get_phys_proc_id(struct cpuinfo_x86 *c)
 {
-#if (KERNEL_VERSION(6, 7, 0) <= LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(6, 7, 0) <= LINUX_VERSION_CODE) || \
+(RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 5) <= RHEL_RELEASE_CODE)
 	return c->topo.pkg_id;
 #else
 	return c->phys_proc_id;
@@ -688,6 +681,20 @@ static inline int get_phys_proc_id(struct cpuinfo_x86 *c)
 #ifndef strscpy
 #define strscpy strlcpy
 #endif
+#endif
+
+#if (KERNEL_VERSION(4, 12, 0) > LINUX_VERSION_CODE)
+static inline bool atomic_try_cmpxchg(atomic_t *ptr, int *oldp, int new)
+{
+	int ret, old = *oldp;
+
+	ret = atomic_cmpxchg(ptr, old, new);
+
+	if (ret != old)
+		*oldp = ret;
+
+	return ret == old;
+}
 #endif
 
 #endif /* _QAT_COMPAT_H_ */

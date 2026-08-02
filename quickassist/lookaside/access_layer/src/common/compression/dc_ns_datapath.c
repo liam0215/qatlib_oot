@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -661,9 +661,8 @@ void dcNsCompression_ProcessCallback(void *pRespMsg)
         {
             /* With Traditional API this error message will be returned only in
              * stateless decompression direction */
-            LAC_LOG_ERROR(
-                "Unrecoverable error: stateless overflow. You may "
-                "need to increase the size of your destination buffer");
+            LAC_LOG_DEBUG("Error: stateless overflow.");
+            LAC_LOG_DEBUG("Try resubmitting with a larger destination buffer.");
         }
 
         if (isDcDp)
@@ -972,7 +971,7 @@ STATIC void dcNsCompHwBlockPopulateGen4(
             case CPA_DC_L5:
                 hw_comp_lower_csr.sd = ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_1;
                 hw_comp_lower_csr.hash_col =
-                    ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_DONT_ALLOW;
+                    ICP_QAT_HW_COMP_20_HASH_COLLISION_SKIP;
                 break;
             case CPA_DC_L6:
             case CPA_DC_L7:
@@ -1016,8 +1015,7 @@ STATIC void dcNsCompHwBlockPopulateGen4(
              * do not support adaptive block drop */
             hw_comp_lower_csr.abd = ICP_QAT_HW_COMP_20_ABD_ABD_ENABLED;
         }
-        hw_comp_lower_csr.hash_update =
-            ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW;
+        hw_comp_lower_csr.hash_update = ICP_QAT_HW_COMP_20_HASH_UPDATE_SKIP;
         hw_comp_lower_csr.edmm =
             (pService->comp_device_data.enableDmm == CPA_TRUE)
                 ? ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_ENABLED
@@ -1149,7 +1147,7 @@ CpaStatus dcNsCreateBaseRequest(icp_qat_fw_comp_req_t *pMsg,
     LAC_OS_BZERO(pMsg, sizeof(icp_qat_fw_comp_req_t));
 
     cmnRequestFlags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-        DC_DEFAULT_QAT_PTR_TYPE, QAT_COMN_CD_FLD_TYPE_16BYTE_DATA);
+        QAT_COMN_CD_FLD_TYPE_16BYTE_DATA, DC_DEFAULT_QAT_PTR_TYPE);
 
     /* Set AT flag in request header if instance supports address translation*/
     if (pService->generic_service_info.atEnabled)
@@ -2078,6 +2076,8 @@ CpaStatus dcNsEnableCnvErrorInj(CpaInstanceHandle dcInstance,
     {
         insHandle = dcInstance;
     }
+
+    SAL_CHECK_INSTANCE_TYPE(insHandle, SAL_SERVICE_TYPE_COMPRESSION);
 
     pService = (sal_compression_service_t *)insHandle;
 

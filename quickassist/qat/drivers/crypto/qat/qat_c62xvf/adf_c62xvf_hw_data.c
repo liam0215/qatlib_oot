@@ -147,6 +147,15 @@ static int get_int_active_bundles(struct adf_accel_dev *accel_dev)
 	return ((v_sou & ~v_msk) & BIT(0)) ? 1 : 0;
 }
 
+static void adf_mask_rp_irqs(struct adf_accel_dev *accel_dev,
+			     const u32 mask)
+{
+	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
+	void __iomem *pmisc_bar_addr =
+		pci_info->pci_bars[ADF_C62XIOV_PMISC_BAR].virt_addr;
+	ADF_CSR_WR(pmisc_bar_addr, ADF_C62XIOV_VINTMSK_OFFSET, mask);
+}
+
 void adf_init_hw_data_c62xiov(struct adf_hw_device_data *hw_data)
 {
 	hw_data->dev_class = &c62xiov_class;
@@ -205,6 +214,8 @@ void adf_init_hw_data_c62xiov(struct adf_hw_device_data *hw_data)
 	hw_data->coalescing_min_time = ADF_C62XIOV_COALESCING_MIN_TIME;
 	hw_data->coalescing_max_time = ADF_C62XIOV_COALESCING_MAX_TIME;
 	hw_data->coalescing_def_time = ADF_C62XIOV_COALESCING_DEF_TIME;
+	hw_data->mask_rp_irqs = adf_mask_rp_irqs;
+	hw_data->rp_mask = ADF_GEN2_RP_MASK;
 }
 
 void adf_clean_hw_data_c62xiov(struct adf_hw_device_data *hw_data)

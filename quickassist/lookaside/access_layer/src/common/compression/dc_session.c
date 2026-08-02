@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -99,11 +99,8 @@ CpaStatus dcCheckSessionCrcControlData(
 CpaStatus dcCheckSessionData(const CpaDcSessionSetupData *pSessionData,
                              CpaInstanceHandle dcInstance)
 {
-    sal_compression_service_t *pService = NULL;
-    CpaDcInstanceCapabilities instanceCapabilities = {0};
-
-    cpaDcQueryCapabilities(dcInstance, &instanceCapabilities);
-    pService = (sal_compression_service_t *)dcInstance;
+    sal_compression_service_t *pService =
+        (sal_compression_service_t *)dcInstance;
 
     if ((pSessionData->compLevel < CPA_DC_L1) ||
         (pSessionData->compLevel > CPA_DC_L12))
@@ -467,7 +464,7 @@ STATIC void dcCompHwBlockPopulateGen4(
             case CPA_DC_L5:
                 hw_comp_lower_csr.sd = ICP_QAT_HW_COMP_20_SEARCH_DEPTH_LEVEL_1;
                 hw_comp_lower_csr.hash_col =
-                    ICP_QAT_HW_COMP_20_SKIP_HASH_COLLISION_DONT_ALLOW;
+                    ICP_QAT_HW_COMP_20_HASH_COLLISION_SKIP;
                 break;
             case CPA_DC_L6:
             case CPA_DC_L7:
@@ -510,8 +507,7 @@ STATIC void dcCompHwBlockPopulateGen4(
              * do not support adaptive block drop */
             hw_comp_lower_csr.abd = ICP_QAT_HW_COMP_20_ABD_ABD_ENABLED;
         }
-        hw_comp_lower_csr.hash_update =
-            ICP_QAT_HW_COMP_20_SKIP_HASH_UPDATE_DONT_ALLOW;
+        hw_comp_lower_csr.hash_update = ICP_QAT_HW_COMP_20_HASH_UPDATE_SKIP;
         hw_comp_lower_csr.edmm =
             (CPA_TRUE == pService->comp_device_data.enableDmm)
                 ? ICP_QAT_HW_COMP_20_EXTENDED_DELAY_MATCH_MODE_EDMM_ENABLED
@@ -539,12 +535,12 @@ STATIC void dcCompHwBlockPopulateGen4(
         if (CPA_DC_DEFLATE == pSessionDesc->compType)
         {
             hw_decomp_lower_csr.algo = (icp_qat_hw_decomp_20_hw_comp_format_t)
-                ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_DEFLATE;
+                ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_DEFLATE;
         }
         else if (CPA_DC_LZ4 == pSessionDesc->compType)
         {
             hw_decomp_lower_csr.algo = (icp_qat_hw_decomp_20_hw_comp_format_t)
-                ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_LZ4;
+                ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_LZ4;
             hw_decomp_lower_csr.lbms =
                 (icp_qat_hw_decomp_20_lbms_t)pSessionDesc->lz4BlockMaxSize;
             if (CPA_TRUE == pSessionDesc->lz4BlockChecksum)
@@ -561,7 +557,7 @@ STATIC void dcCompHwBlockPopulateGen4(
         else if (CPA_DC_LZ4S == pSessionDesc->compType)
         {
             hw_decomp_lower_csr.algo = (icp_qat_hw_decomp_20_hw_comp_format_t)
-                ICP_QAT_HW_COMP_20_HW_COMP_FORMAT_LZ4S;
+                ICP_QAT_HW_DECOMP_20_HW_DECOMP_FORMAT_LZ4S;
             hw_decomp_lower_csr.mmctrl =
                 (icp_qat_hw_decomp_20_min_match_control_t)
                     pSessionDesc->minMatch;
@@ -995,7 +991,7 @@ CpaStatus dcInitSession(CpaInstanceHandle dcInstance,
     icp_qat_fw_ext_serv_specif_flags extServiceCmdFlags = 0;
 
     cmnRequestFlags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-        DC_DEFAULT_QAT_PTR_TYPE, QAT_COMN_CD_FLD_TYPE_16BYTE_DATA);
+        QAT_COMN_CD_FLD_TYPE_16BYTE_DATA, DC_DEFAULT_QAT_PTR_TYPE);
 
     pService = (sal_compression_service_t *)dcInstance;
 
@@ -1789,6 +1785,7 @@ CpaStatus dcGetSessionSize(CpaInstanceHandle dcInstance,
 #ifdef ICP_PARAM_CHECK
     /* Check parameters */
     LAC_CHECK_NULL_PARAM(insHandle);
+    SAL_CHECK_INSTANCE_TYPE(insHandle, SAL_SERVICE_TYPE_COMPRESSION);
     LAC_CHECK_NULL_PARAM(pSessionData);
     LAC_CHECK_NULL_PARAM(pSessionSize);
 
@@ -1859,6 +1856,8 @@ CpaStatus dcSetCnvError(CpaInstanceHandle dcInstance,
     {
         insHandle = dcInstance;
     }
+
+    SAL_CHECK_INSTANCE_TYPE(insHandle, SAL_SERVICE_TYPE_COMPRESSION);
 
     pService = (sal_compression_service_t *)insHandle;
 

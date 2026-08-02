@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -210,7 +210,12 @@ char *icpGetProcessName(void);
 #undef STATIC
 #undef INLINE
 
+#ifdef KERNEL_SPACE
+#define STATIC static
+#else
 #define STATIC
+#endif
+
 #define INLINE
 /**< @ingroup LacCommon
  * When DEBUG is set STATIC evaluates to nothing. */

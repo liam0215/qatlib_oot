@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -62,13 +62,6 @@
 
 /* Values used to build footers for LZ4 */
 #define DC_LZ4_FF_END_MARK 0x0
-
-typedef enum _CpaDcFrameType
-{
-    CPA_DC_FRAME_ZLIB,
-    CPA_DC_FRAME_GZIP,
-    CPA_DC_FRAME_LZ4
-} CpaDcFrameType;
 
 /**
  *****************************************************************************

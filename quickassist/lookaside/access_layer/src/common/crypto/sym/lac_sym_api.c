@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -1164,7 +1164,7 @@ CpaStatus cpaCySymPerformOp(const CpaInstanceHandle instanceHandle_in,
 
 /** @ingroup LacSym */
 CpaStatus cpaCySymQueryStats(const CpaInstanceHandle instanceHandle_in,
-                             struct _CpaCySymStats *pSymStats)
+                             CpaCySymStats *pSymStats)
 {
 
     CpaInstanceHandle instanceHandle = NULL;

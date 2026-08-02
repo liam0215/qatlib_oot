@@ -255,6 +255,8 @@ int adf_config_device(struct adf_accel_dev *accel_dev);
 
 int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 			   void *in, void *out);
+bool adf_dev_lock(struct adf_accel_dev *accel_dev);
+bool adf_dev_unlock(struct adf_accel_dev *accel_dev);
 int adf_dev_get(struct adf_accel_dev *accel_dev);
 void adf_dev_put(struct adf_accel_dev *accel_dev);
 int adf_dev_in_use(struct adf_accel_dev *accel_dev);

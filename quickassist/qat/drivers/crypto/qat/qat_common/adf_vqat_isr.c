@@ -120,6 +120,7 @@ static void adf_dev_stop_async(struct work_struct *work)
 	}
 	accel_dev->vf.is_err_notified = false;
 
+	/* Trying to lock the device for reset */
 	if (adf_dev_restarting_notify_sync(accel_dev)) {
 		clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 		return;
@@ -131,6 +132,8 @@ static void adf_dev_stop_async(struct work_struct *work)
 	/* Re-enable PF2VF interrupts */
 	hw_data->enable_pf2vf_interrupt(accel_dev);
 	kfree(stop_data);
+	/* Need to unlock user space access after reset */
+	adf_dev_unlock(accel_dev);
 }
 
 static void adf_vqat_iov_handle_vdcm_msg(struct adf_accel_dev *accel_dev)

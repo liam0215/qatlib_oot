@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -54,6 +54,8 @@
 #include "lac_mem_pools.h"
 #include "lac_mem.h"
 #include "lac_common.h"
+#include "lac_session.h"
+#include "lac_sym_cb.h"
 #include "Osal.h"
 #include "lac_sw_responses.h"
 
@@ -190,13 +192,19 @@ CpaStatus LacSwResp_GenRespMsgCallback(lac_memblk_bucket_t *pBucket,
 {
     CpaStatus status = CPA_STATUS_RETRY;
 
-    if (SAL_SERVICE_TYPE_COMPRESSION == type)
+    switch (type)
     {
-        status = dcCompression_SwRespMsgCallback(pBucket);
-    }
-    else
-    {
-        status = LacPke_SwRespMsgCallback(pBucket);
+        case SAL_SERVICE_TYPE_COMPRESSION:
+            status = dcCompression_SwRespMsgCallback(pBucket);
+            break;
+        case SAL_SERVICE_TYPE_CRYPTO_SYM:
+            status = LacSym_SwRespMsgCallback(pBucket);
+            break;
+        case SAL_SERVICE_TYPE_CRYPTO_ASYM:
+            status = LacPke_SwRespMsgCallback(pBucket);
+            break;
+        default:
+            break;
     }
 
     return status;
@@ -244,7 +252,7 @@ CpaStatus LacSwResp_GenResp(lac_memory_pool_id_t lac_mem_pool,
         status = LacSwResp_GenRespMsgCallback(pBucket, type);
         if ((CPA_STATUS_SUCCESS != status) && (CPA_STATUS_RETRY != status))
         {
-            LAC_LOG_ERROR("Failed to generate PKE dummy responses!");
+            LAC_LOG_ERROR("Failed to generate dummy responses!");
         }
         LacSwResp_MemBlkBucketDestroy(pBucket);
     }

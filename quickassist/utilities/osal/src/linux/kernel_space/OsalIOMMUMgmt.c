@@ -62,13 +62,45 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
 */
 
 #include "Osal.h"
 #include "OsalOsTypes.h"
+#include "OsalDevDrv.h"
 #include <linux/pci.h>
 #include <linux/iommu.h>
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+chr_drv_info_t *drv_info = NULL;
+
+static int osalCreateDevice(chr_drv_info_t *drv_info)
+{
+    int ret = 0;
+    drv_info = kzalloc(sizeof(chr_drv_info_t), GFP_KERNEL);
+    if (!drv_info)
+    {
+        osalLog(OSAL_LOG_LVL_ERROR,
+                OSAL_LOG_DEV_STDOUT,
+                "failed to allocate memory for drv_info\n");
+        return OSAL_FAIL;
+    }
+
+    ret = chr_drv_create_device(drv_info, NULL);
+    if (ret != OSAL_SUCCESS)
+    {
+        osalLog(OSAL_LOG_LVL_ERROR,
+                OSAL_LOG_DEV_STDOUT,
+                "failed to create device driver\n");
+        chr_drv_destroy_device(drv_info);
+        kfree(drv_info);
+        return OSAL_FAIL;
+    }
+
+    return OSAL_SUCCESS;
+}
+
+#endif
 
 #ifndef ICP_WITHOUT_IOMMU
 
@@ -86,6 +118,13 @@ int osalIOMMUMap(UINT64 iova, UINT64 phaddr, size_t size)
     return iommu_map_range(domain,(unsigned long)iova,
               (phys_addr_t)phaddr,size,
               IOMMU_READ|IOMMU_WRITE|IOMMU_CACHE);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    return iommu_map(domain,
+                     (unsigned long)iova,
+                     (phys_addr_t)phaddr,
+                     size,
+                     IOMMU_READ | IOMMU_WRITE | IOMMU_CACHE,
+                     GFP_KERNEL);
 #else
     return iommu_map(domain, (unsigned long)iova,
               (phys_addr_t)phaddr, size,
@@ -168,8 +207,17 @@ int osalIOMMUInit(void)
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,1,10)
     if (!iommu_found()) {
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     if (!iommu_present(&pci_bus_type)) {
+#else
+    if (osalCreateDevice(drv_info) != OSAL_SUCCESS &&
+        !device_iommu_mapped(drv_info->drv_class_dev))
+    {
+        if (!drv_info)
+        {
+            chr_drv_destroy_device(drv_info);
+            kfree(drv_info);
+        }
 #endif
         osalLog(OSAL_LOG_LVL_ERROR,
                 OSAL_LOG_DEV_STDERR,
@@ -179,8 +227,10 @@ int osalIOMMUInit(void)
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,1,10)
     dummy_domain = iommu_domain_alloc();
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     dummy_domain = iommu_domain_alloc(&pci_bus_type);
+#else
+    dummy_domain = iommu_paging_domain_alloc(drv_info->drv_class_dev);
 #endif
     if ( __sync_bool_compare_and_swap((volatile struct iommu_domain **)&domain,NULL,dummy_domain))
     {
@@ -215,6 +265,10 @@ void osalIOMMUExit(void)
     {
         iommu_domain_free(existing_domain);
     }
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    chr_drv_destroy_device(drv_info);
+    kfree(drv_info);
+#endif
 }
 
 #else
@@ -251,8 +305,17 @@ int osalIOMMUInit(void)
 {
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,1,10)
     if (iommu_found()) {
-#else
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
     if (iommu_present(&pci_bus_type)) {
+#else
+    if (osalCreateDevice(drv_info) != OSAL_SUCCESS &&
+        device_iommu_mapped(drv_info->drv_class_dev))
+    {
+        if (!drv_info)
+        {
+            chr_drv_destroy_device(drv_info);
+            kfree(drv_info);
+        }
 #endif
 #ifndef ICP_SRIOV
         osalLog(OSAL_LOG_LVL_ERROR,
@@ -267,5 +330,9 @@ int osalIOMMUInit(void)
 
 void osalIOMMUExit(void)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0)
+    chr_drv_destroy_device(drv_info);
+    kfree(drv_info);
+#endif
 }
 #endif

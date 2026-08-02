@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -1742,15 +1742,6 @@ CpaStatus cpaDcStopInstance(CpaInstanceHandle instanceHandle)
     LAC_CHECK_NULL_PARAM(insHandle);
     pService = (sal_compression_service_t *)insHandle;
 
-    /* Free Intermediate Buffer Pointers Array */
-    if (pService->pInterBuffPtrsArray != NULL)
-    {
-        LAC_OS_CAFREE(pService->pInterBuffPtrsArray);
-        pService->pInterBuffPtrsArray = 0;
-    }
-
-    pService->pInterBuffPtrsArrayPhyAddr = 0;
-
     status = cpaDcInstanceGetInfo2(insHandle, &info);
     if (CPA_STATUS_SUCCESS != status)
     {
@@ -1768,6 +1759,16 @@ CpaStatus cpaDcStopInstance(CpaInstanceHandle instanceHandle)
 
     /* Decrement dev ref counter */
     icp_qa_dev_put(dev);
+
+    /* Free Intermediate Buffer Pointers Array */
+    if (pService->pInterBuffPtrsArray != NULL)
+    {
+        LAC_OS_CAFREE(pService->pInterBuffPtrsArray);
+        pService->pInterBuffPtrsArray = 0;
+    }
+
+    pService->pInterBuffPtrsArrayPhyAddr = 0;
+
     return CPA_STATUS_SUCCESS;
 }
 

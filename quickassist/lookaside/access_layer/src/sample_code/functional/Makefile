@@ -30,7 +30,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ################################################################
 
 #Set Upstream code based flags
@@ -203,6 +203,9 @@ ifeq ($(ICP_OS),linux_2.6)
 BUILD_SYN += update_sample
 endif
 
+ifeq ($(ICP_HB_FAIL_SIM),y)
+BUILD_SYN += heartbeat_sample
+endif
 
 sym:$(BUILD_SYN)
 	@echo ; echo "Build sym component $(BUILD_SYN)";
@@ -372,6 +375,9 @@ ifeq ($(ICP_OS),linux_2.6)
 CLEAN_SYM += clean_update_sample
 endif
 
+ifeq ($(ICP_HB_FAIL_SIM),y)
+CLEAN_SYM += clean_heartbeat_sample
+endif
 
 CLEAN_ASYM=clean_diffie_hellman_sample                 \
 	   clean_prime_sample						   \

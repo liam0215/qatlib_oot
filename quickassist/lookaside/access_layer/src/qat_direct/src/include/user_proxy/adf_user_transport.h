@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -83,14 +83,6 @@ int32_t adf_user_check_ring_error(adf_dev_ring_handle_t *pRingHandle);
  * Function notifies client that there is response message on polling rings
  */
 CpaStatus adf_user_notify_msgs_poll(adf_dev_ring_handle_t *pRingHandle);
-
-/*
- * adf_user_unmap_rings
- *
- * Description
- * Function unmaps all rings allocated for a given device
- */
-CpaStatus adf_user_unmap_rings(icp_accel_dev_t *accel_dev);
 
 /*
  * adf_pollRing

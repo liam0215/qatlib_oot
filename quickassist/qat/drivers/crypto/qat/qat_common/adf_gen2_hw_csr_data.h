@@ -11,6 +11,7 @@
 
 #define ADF_GEN2_PF2VF_OFFSET(i)	(0x3A000 + 0x280 + ((i) * 0x04))
 #define ADF_GEN2_VINTMSK_OFFSET(i)	(0x3A000 + 0x200 + ((i) * 0x04))
+#define ADF_GEN2_RP_MASK 0x1
 
 #define ADF_GEN2_ERRSOU3 (0x3A000 + 0x0C)
 #define ADF_GEN2_ERRMSK3 (0x3A000 + 0x1C)

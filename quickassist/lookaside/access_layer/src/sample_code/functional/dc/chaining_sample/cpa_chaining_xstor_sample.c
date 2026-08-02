@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -932,6 +932,9 @@ CpaStatus dcChainXstorSample(void)
         return CPA_STATUS_FAIL;
     }
 
+    /* Note : for QAT2.x, The below block won't get executed.
+     * For QAT2.x, intermediate buffers are not required,
+     * Hence cpaDcGetNumIntermediateBuffers() will return 0 */
     if (cap.dynamicHuffmanBufferReq)
     {
         status = cpaDcBufferListGetMetaSize(dcInstHandle, 1, &buffMetaSize);

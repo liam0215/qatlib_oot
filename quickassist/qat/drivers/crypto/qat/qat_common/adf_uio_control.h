@@ -16,6 +16,7 @@ struct pci_dev;
 struct adf_uio_instance_rings {
 	unsigned int user_pid;
 	u16 ring_mask;
+	uintptr_t vma;
 	struct list_head list;
 };
 

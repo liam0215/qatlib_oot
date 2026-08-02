@@ -62,9 +62,10 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 #include "Osal.h"
+#include "OsalCompat.h"
 
 #include <linux/version.h>
 #include <linux/sched.h>
@@ -77,9 +78,6 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 DECLARE_MUTEX (osalThreadMutex);
 DECLARE_MUTEX (osalThreadStopMutex);
-#elif KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE
-DEFINE_SEMAPHORE(osalThreadMutex);
-DEFINE_SEMAPHORE(osalThreadStopMutex);
 #else
 DEFINE_SEMAPHORE(osalThreadMutex, 1);
 DEFINE_SEMAPHORE(osalThreadStopMutex, 1);
@@ -167,7 +165,7 @@ osalThreadExit (void)
  * UINT32 priority - the value of priority can range from 0 to 39   *
  *                   with 0 being the highest priority.                *
  *                                                                     *
- * Any values with priority higher than 255 will be discared and a  *
+ * Any values with priority higher than 255 will be discarded and a  *
  * OSAL_FAIL will be returned to the caller.                        *
  * Values bigger than 39 will be rounder in this implementation.    *
  * Internally, the range is converted to the corresponding nice     *

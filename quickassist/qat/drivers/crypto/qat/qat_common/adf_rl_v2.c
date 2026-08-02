@@ -776,6 +776,9 @@ static bool rl_enough_root_sla_budget(struct adf_accel_dev *accel_dev,
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 
+	if (root->svc_type > ADF_SVC_NONE || root->svc_type < ADF_SVC_ASYM)
+		return false;
+
 	switch (root->svc_type) {
 	case ADF_SVC_ASYM:
 		if (sla->pir > hw_data->rl_data.slice_reference ||

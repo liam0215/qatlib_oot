@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -416,7 +416,7 @@ void LacKeygen_StatsShow(CpaInstanceHandle instanceHandle)
 
 /** @ingroup LacSymKey */
 CpaStatus cpaCyKeyGenQueryStats(CpaInstanceHandle instanceHandle_in,
-                                struct _CpaCyKeyGenStats *pSymKeyStats)
+                                CpaCyKeyGenStats *pSymKeyStats)
 {
     CpaInstanceHandle instanceHandle = NULL;
 
@@ -776,6 +776,7 @@ LacSymKey_MgfCommon(const CpaInstanceHandle instanceHandle,
     sal_crypto_service_t *pService = NULL;
     Cpa64U inputPhysAddr = 0;
     Cpa64U outputPhysAddr = 0;
+    Cpa64U seq_num = ICP_ADF_INVALID_SEND_SEQ;
 /* Structure initializer is supported by C99, but it is
  * not supported by some former Intel compiler.
  */
@@ -791,7 +792,7 @@ LacSymKey_MgfCommon(const CpaInstanceHandle instanceHandle,
     icp_qat_fw_serv_specif_flags laCmdFlags = 0;
     icp_qat_fw_ext_serv_specif_flags laExtCmdFlags = 0;
     icp_qat_fw_comn_flags cmnRequestFlags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-        QAT_COMN_PTR_TYPE_FLAT, QAT_COMN_CD_FLD_TYPE_64BIT_ADR);
+        QAT_COMN_CD_FLD_TYPE_64BIT_ADR, QAT_COMN_PTR_TYPE_FLAT);
 
 #ifdef ICP_PARAM_CHECK
     LAC_CHECK_INSTANCE_HANDLE(instanceHandle);
@@ -864,6 +865,7 @@ LacSymKey_MgfCommon(const CpaInstanceHandle instanceHandle,
         else
         {
             pSymCookie = (lac_sym_cookie_t *)pCookie;
+            pSymCookie->cookieType = LAC_SYM_KEY_COOKIE_TYPE;
         }
     } while ((void *)CPA_STATUS_RETRY == pCookie);
 
@@ -977,16 +979,16 @@ LacSymKey_MgfCommon(const CpaInstanceHandle instanceHandle,
                               outputPhysAddr,
                               0,
                               0);
-
         status = icp_adf_transPutMsg(pService->trans_handle_sym_tx,
                                      (void *)&(keyGenReq),
                                      LAC_QAT_SYM_REQ_SZ_LW,
-                                     NULL);
+                                     &seq_num);
     }
     if (CPA_STATUS_SUCCESS == status)
     {
         /* Update stats */
         LAC_KEY_STAT_INC(numMgfKeyGenRequests, instanceHandle);
+        LAC_MEM_POOL_BLK_SET_OPAQUE(pCookie, seq_num);
     }
     else
     {
@@ -1517,9 +1519,10 @@ LacSymKey_KeyGenSslTls_GenCommon(CpaInstanceHandle instanceHandle,
     icp_qat_fw_serv_specif_flags laCmdFlags = 0;
     icp_qat_fw_ext_serv_specif_flags laExtCmdFlags = 0;
     icp_qat_fw_comn_flags cmnRequestFlags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-        QAT_COMN_PTR_TYPE_FLAT, QAT_COMN_CD_FLD_TYPE_64BIT_ADR);
+        QAT_COMN_CD_FLD_TYPE_64BIT_ADR, QAT_COMN_PTR_TYPE_FLAT);
 
     sal_crypto_service_t *pService = (sal_crypto_service_t *)instanceHandle;
+    Cpa64U seq_num = ICP_ADF_INVALID_SEND_SEQ;
 
     if (pService->generic_service_info.atEnabled)
     {
@@ -1555,6 +1558,7 @@ LacSymKey_KeyGenSslTls_GenCommon(CpaInstanceHandle instanceHandle,
         else
         {
             pSymCookie = (lac_sym_cookie_t *)pCookie;
+            pSymCookie->cookieType = LAC_SYM_KEY_COOKIE_TYPE;
         }
     } while ((void *)CPA_STATUS_RETRY == pCookie);
 
@@ -2119,12 +2123,13 @@ LacSymKey_KeyGenSslTls_GenCommon(CpaInstanceHandle instanceHandle,
         status = icp_adf_transPutMsg(pService->trans_handle_sym_tx,
                                      (void *)&(keyGenReq),
                                      LAC_QAT_SYM_REQ_SZ_LW,
-                                     NULL);
+                                     &seq_num);
     }
     if (CPA_STATUS_SUCCESS == status)
     {
         /* Update stats */
         LacKey_StatsInc(lacCmdId, LAC_KEY_REQUESTS, pCookie->instanceHandle);
+        LAC_MEM_POOL_BLK_SET_OPAQUE(pCookie, seq_num);
     }
     else
     {

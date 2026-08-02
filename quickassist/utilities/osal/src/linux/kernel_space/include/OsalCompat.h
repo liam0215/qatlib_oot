@@ -58,7 +58,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 
 #ifndef OSAL_COMPAT_H
@@ -75,6 +75,32 @@
 #if ((!SLE_VERSION_CODE && KERNEL_VERSION(5, 11, 0) > LINUX_VERSION_CODE) || \
         (SLE_VERSION_CODE && SLE_VERSION(15, 3, 0) > SLE_VERSION_CODE))
 #define QAT_SINGLE_SHA_HEADER
+#endif
+
+#ifndef RHEL_RELEASE_CODE
+#define RHEL_RELEASE_CODE 0
+#endif
+
+#ifndef RHEL_RELEASE_VERSION
+#define RHEL_RELEASE_VERSION(a, b) (((a) << 8) + (b))
+#endif
+#define RHEL_MAX_RELEASE_CODE 2403
+
+#if (KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE) && \
+        !((RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) <= RHEL_RELEASE_CODE) && \
+	   RHEL_RELEASE_CODE != RHEL_MAX_RELEASE_CODE)
+#undef class_create
+#define class_create(name)                              \
+({                                                      \
+        static struct lock_class_key __key;             \
+        __class_create(THIS_MODULE, name, &__key);      \
+})
+#endif
+
+#if (KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE)
+#undef DEFINE_SEMAPHORE
+#define DEFINE_SEMAPHORE(name, n)       \
+        struct semaphore name = __SEMAPHORE_INITIALIZER(name, 1)
 #endif
 
 #endif

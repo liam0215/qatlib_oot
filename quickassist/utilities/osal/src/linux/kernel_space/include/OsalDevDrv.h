@@ -62,7 +62,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
 */
 
 #ifndef OSAL_DEV_DRV_H
@@ -72,4 +72,6 @@
 
 int register_mem_device_driver(char* path);
 void unregister_mem_device_driver(void);
+int chr_drv_create_device(chr_drv_info_t *drv_info, char *path);
+void chr_drv_destroy_device(chr_drv_info_t *drv_info);
 #endif

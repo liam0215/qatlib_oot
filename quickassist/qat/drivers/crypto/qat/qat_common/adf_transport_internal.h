@@ -45,6 +45,7 @@ struct adf_etr_bank_data {
 	u32 bank_number;
 	enum adf_bundle_type type;
 	void *pasid_context;
+	bool event_pending;
 };
 
 struct adf_etr_data {

@@ -1146,7 +1146,7 @@ static int adf_cfg_create_accel_section(struct adf_accel_dev *accel_dev,
 		ADF_CFG_MAX_KEY_LEN_IN_BYTES);
 	if (adf_cfg_set_value(accel_dev, ADF_GENERAL_SEC, key,
 			      &accel_coales_timer))
-		accel_coales_timer = hw_device->default_coalesce_timer;
+		accel_coales_timer = hw_device->coalescing_def_time;
 
 	strscpy(key, ADF_ETRMGR_COALESCING_MSG_ENABLED,
 		ADF_CFG_MAX_KEY_LEN_IN_BYTES);

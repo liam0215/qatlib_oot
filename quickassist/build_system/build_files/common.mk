@@ -34,7 +34,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 #####
 
 ######Support $(PROG_ACY) and previous vars#################################
@@ -92,6 +92,8 @@ endif
 ifeq ($($(PROG_ACY)_PARAM_CHECK),y)
 EXTRA_CFLAGS+=-DICP_PARAM_CHECK
 endif
+
+ccflags-y+=$(EXTRA_CFLAGS)
 
 ##directories
 # path where to store all the build outputs

@@ -306,6 +306,15 @@ static int adf_config_cy(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
+static int adf_check_reset(struct adf_accel_dev *accel_dev)
+{
+	if (adf_devmgr_in_reset(accel_dev)) {
+		dev_err(&GET_DEV(accel_dev), "QAT Device in reset\n");
+		return -EBUSY;
+	}
+	return 0;
+}
+
 static int adf_sriov_enable(struct adf_accel_dev *accel_dev, const int numvfs)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
@@ -320,6 +329,9 @@ static int adf_sriov_enable(struct adf_accel_dev *accel_dev, const int numvfs)
 			 "Already enabled for this device\n");
 		return -EINVAL;
 	}
+
+	if (adf_check_reset(accel_dev))
+		return -EBUSY;
 
 	/* The device is down, hence configure the
 	 * accel units before enabling the device
@@ -394,6 +406,9 @@ static int adf_sriov_disable(struct adf_accel_dev *accel_dev)
 			"Disable SRIOV failed as device is in use\n");
 		return -EBUSY;
 	}
+
+	if (adf_check_reset(accel_dev))
+		return -EBUSY;
 
 	if (adf_dev_started(accel_dev)) {
 		if (adf_devmgr_in_reset(accel_dev)) {

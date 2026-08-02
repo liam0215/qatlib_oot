@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ############################################################################
 
 ####################Common variables and definitions########################
@@ -63,6 +63,7 @@ CMN_MODULE_NAME?=libusdm_drv
 CFLAGS+= -std=gnu99 -Wall -DDEBUG
 
 EXTRA_LDFLAGS += -L/usr/Lib -L$(ICP_BUILD_OUTPUT)
+ldflags-y+=$(EXTRA_LDFLAGS)
 
 ADDITIONAL_OBJECTS += $(ICP_BUILD_OUTPUT)/libqat_s.so
 

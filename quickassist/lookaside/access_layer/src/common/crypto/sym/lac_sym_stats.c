@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -113,7 +113,7 @@ void LacSym_StatsInc(Cpa32U offset, CpaInstanceHandle instanceHandle)
 }
 
 void LacSym_Stats32CopyGet(CpaInstanceHandle instanceHandle,
-                           struct _CpaCySymStats *const pSymStats)
+                           CpaCySymStats *const pSymStats)
 {
     int i = 0;
     sal_crypto_service_t *pService = (sal_crypto_service_t *)instanceHandle;

@@ -30,7 +30,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 
 /**
@@ -619,7 +619,7 @@ void LacPke_InitAsymRequest(Cpa8U *pData, CpaInstanceHandle instanceHandle)
     lac_pke_qat_req_data_t *pReqData = (lac_pke_qat_req_data_t *)pData;
     /* No flag update done or necessary*/
     icp_qat_fw_comn_flags_pke cmnRequestFlags = ICP_QAT_FW_COMN_FLAGS_BUILD(
-        QAT_COMN_PTR_TYPE_FLAT, QAT_COMN_CD_FLD_TYPE_64BIT_ADR);
+        QAT_COMN_CD_FLD_TYPE_64BIT_ADR, QAT_COMN_PTR_TYPE_FLAT);
     icp_qat_fw_req_pke_mid_t *pMid = NULL;
     sal_crypto_service_t *pCryptoService =
         (sal_crypto_service_t *)instanceHandle;

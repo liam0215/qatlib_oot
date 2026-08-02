@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -1938,7 +1938,7 @@ void dcChainPrintTestData(compression_test_params_t *chainSetup)
     PRINT("Corpus Filename        ");
     PRINT("%s\n",
           getFileNameInCorpus(chainSetup->corpus, chainSetup->corpusFileIndex));
-#if (CPA_DC_API_VERSION_NUM_MAJOR > 1) && (CPA_DC_API_VERSION_NUM_MINOR > 1)
+#if DC_API_VERSION_AT_LEAST(2, 2)
     PRINT("CNV Recovery Enabled   ");
     switch (CNV_RECOVERY(&chainSetup->requestOps))
     {

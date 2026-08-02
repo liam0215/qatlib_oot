@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ############################################################################
 
 #Set Upstream code based flags
@@ -156,6 +156,7 @@ else
 #
 ############################################################
 EXTRA_CFLAGS+=$(INCLUDES)
+ccflags-y+=$(EXTRA_CFLAGS)
 KBUILD_EXTRA_SYMBOLS += $(SAMPLE_PATH)/../../Module.symvers
 export $(KBUILD_EXTRA_SYMBOLS)
 

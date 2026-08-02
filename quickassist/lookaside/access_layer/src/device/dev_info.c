@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -72,22 +72,12 @@ CpaStatus cpaGetDeviceInfo(Cpa16U device, CpaDeviceInfo *deviceInfo)
 {
     CpaStatus status = CPA_STATUS_SUCCESS;
     icp_accel_dev_t *pDevice = NULL;
-    Cpa16U numDevicesAvail = 0;
     Cpa32U capabilitiesMask = 0;
     Cpa32U enabledServices = 0;
 
 #ifdef ICP_PARAM_CHECK
     LAC_CHECK_NULL_PARAM(deviceInfo);
 #endif
-    status = icp_amgr_getNumInstances(&numDevicesAvail);
-    /* Check if the application is not attempting to access a
-     * device that does not exist.
-     */
-    if (0 == numDevicesAvail)
-    {
-        LAC_LOG_ERROR("Failed to retrieve number of devices!");
-        return CPA_STATUS_FAIL;
-    }
 
     /* Clear the entire capability structure before initialising it */
     ICP_MEMSET(deviceInfo, sizeof(CpaDeviceInfo), 0x00);
@@ -98,7 +88,7 @@ CpaStatus cpaGetDeviceInfo(Cpa16U device, CpaDeviceInfo *deviceInfo)
     if (NULL == pDevice)
     {
         LAC_LOG_ERROR("Failed to retrieve device");
-        return status;
+        return CPA_STATUS_FAIL;
     }
 
     /* Device of interest is found, retrieve the information for it */

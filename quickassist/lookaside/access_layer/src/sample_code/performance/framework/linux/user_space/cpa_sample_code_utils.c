@@ -32,7 +32,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -57,7 +57,6 @@
 #include <utmpx.h>
 #include <asm/param.h>
 #include <sys/epoll.h>
-#include <errno.h>
 #include <limits.h>
 #include <time.h>
 #include <linux/version.h>
@@ -72,6 +71,7 @@
 #endif
 
 #define EPOLL_MAX_EVENTS 1
+#define EPOLL_TIMEOUT 100
 #define _4K_PAGE_SIZE (4 * 1024)
 
 #if UINT_MAX == 0xFFFFFFFF
@@ -1080,17 +1080,20 @@ int parseArg(int argc, char **argv, option_t *optArray, int numOpt)
 
     return 0;
 }
+
 static int sampleCodeEventPoll(CpaInstanceHandle instanceHandle,
                                CpaAccelerationServiceType accelServieType)
 {
 #ifndef SC_EPOLL_DISABLED
-    int fd = 0;
+    int fd = -1;
     int i = 0;
     int n = 0;
-    int efd = 0;
-    struct epoll_event event;
-    struct epoll_event *events;
+    int efd = -1;
+    struct epoll_event event = {0};
+    struct epoll_event *events = NULL;
     CpaStatus status = CPA_STATUS_FAIL;
+    /* Initialize to 0(pass) and override on failure*/
+    int retStatus = 0;
     CpaBoolean volatile *pServiceStarted = NULL;
 
     typedef CpaStatus (*ptr2_icp_sal_GetFileDescriptor)(CpaInstanceHandle,
@@ -1148,12 +1151,38 @@ static int sampleCodeEventPoll(CpaInstanceHandle instanceHandle,
     if (NULL == events)
     {
         PRINT_ERR("Error allocating memory for epoll events\n");
+        if (-1 == epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event))
+        {
+            PRINT_ERR("Error removing fd from epoll\n");
+        }
         return -1;
     }
 
     while (*pServiceStarted == CPA_TRUE)
     {
-        n = epoll_wait(efd, events, EPOLL_MAX_EVENTS, 100);
+        n = epoll_wait(efd, events, EPOLL_MAX_EVENTS, EPOLL_TIMEOUT);
+        if(0 == n)
+        {
+            status = pollInstanceFn(instanceHandle, 0);
+            if ((CPA_STATUS_SUCCESS != status) &&
+                    (CPA_STATUS_RETRY != status))
+            {
+                PRINT_ERR("Error:poll instance returned status %d\n",
+                            status);
+                retStatus = -1;
+                break;
+            }
+
+        }
+        else if (-1 == n)
+        {
+            PRINT_ERR("epoll_wait failed -1: Error Code: %d - %s\n",
+                      errno, strerror(errno));
+	    /* Reset n and continue processing */
+            n = 0;
+            retStatus = -1;
+
+        }
         for (i = 0; i < n; i++)
         {
             if (fd == events[i].data.fd && (events[i].events & EPOLLIN))
@@ -1164,18 +1193,27 @@ static int sampleCodeEventPoll(CpaInstanceHandle instanceHandle,
                 {
                     PRINT_ERR("Error:poll instance returned status %d\n",
                               status);
+                    retStatus = -1;
+                    goto cleanup_and_exit;
                 }
             }
         }
     }
+cleanup_and_exit:
     if (-1 == epoll_ctl(efd, EPOLL_CTL_DEL, fd, &event))
     {
         PRINT_ERR("Error removing fd from epoll\n");
+        retStatus = -1;
     }
     qaeMemFree((void **)&events);
-    putFileDescriptorFn(instanceHandle, fd);
+    status = putFileDescriptorFn(instanceHandle, fd);
+    if (CPA_STATUS_SUCCESS != status)
+    {
+        PRINT_ERR("Error releasing file descriptor for instance\n");
+        retStatus = -1;
+    }
     close(efd);
-    return 0;
+    return retStatus;
 #else
     PRINT_ERR("Event based polling not enabled during compile\n");
     return -1;

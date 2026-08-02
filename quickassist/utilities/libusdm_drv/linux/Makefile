@@ -58,7 +58,7 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ############################################################################
 
 
@@ -168,6 +168,8 @@ STACK_PROTECTION=-fstack-protector -fstack-protector-strong
 EXTRA_CFLAGS := $(filter-out $(STACK_PROTECTION), $(EXTRA_CFLAGS))
 endif
 endif
+
+ccflags-y+=$(EXTRA_CFLAGS)
 
 ifeq ($(ICP_OS_LEVEL),user_space)
 #include os dependent rules

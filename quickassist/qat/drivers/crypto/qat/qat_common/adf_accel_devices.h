@@ -683,6 +683,7 @@ struct adf_hw_device_data {
 	u16 ring_to_svc_map;
 	u32 extended_dc_capabilities;
 	u32 asym_ae_active_thd_mask;
+	u32 rp_mask;
 	/* flag to check if mmp fw will be loaded  by default */
 	bool load_mmp_always;
 	bool get_ring_to_svc_done;
@@ -727,6 +728,7 @@ struct adf_hw_device_data {
 	u32 coalescing_def_time;
 	u32 coalescing_timer_div;
 	struct adf_rl_hw_data rl_data;
+	void (*mask_rp_irqs)(struct adf_accel_dev *accel_dev, const u32 mask);
 } __packed;
 
 /* helper enum for performing CSR operations */

@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -2597,7 +2597,7 @@ CpaStatus LacAlgChain_Perform(const CpaInstanceHandle instanceHandle,
             else
             {
                 pCookie = &(pSymCookie->u.bulkCookie);
-
+                pSymCookie->cookieType = LAC_SYM_BULK_COOKIE_TYPE;
                 /* Initialize cookie isDcChaining field. This function uses
                  * a local variable for isDcChaining but other places may use
                  * the cookie so it needs to be correctly initialized.

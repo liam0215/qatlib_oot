@@ -62,10 +62,11 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 
 #include "Osal.h"
+#include "OsalCompat.h"
 #include "OsalOsTypes.h"
 #include "OsalDevDrv.h"
 #include "OsalDevDrvCommon.h"
@@ -83,14 +84,6 @@
 #include <linux/uaccess.h>
 #include <linux/string.h>
 #include <asm/io.h>
-
-#ifndef RHEL_RELEASE_CODE
-#define RHEL_RELEASE_CODE 0
-#endif
-
-#ifndef RHEL_RELEASE_VERSION
-#define RHEL_RELEASE_VERSION(a, b) (((a) << 8) + (b))
-#endif
 
 #define DEV_MEM_MAX_MINOR       1
 #define DEV_MEM_BASE_MINOR      0
@@ -629,16 +622,7 @@ chr_drv_create_class(chr_drv_info_t* drv_info, char* path)
 
     }
 
-#if KERNEL_VERSION(6, 4, 0) > LINUX_VERSION_CODE
-#if (RHEL_RELEASE_CODE && RHEL_RELEASE_VERSION(9, 4) == RHEL_RELEASE_CODE)
     drv_info->drv_class = class_create((path) ? name : drv_info->name);
-#else
-    drv_info->drv_class = class_create(THIS_MODULE,
-                       (path) ? name : drv_info->name);
-#endif
-#else
-    drv_info->drv_class = class_create((path) ? name : drv_info->name);
-#endif
     if (IS_ERR(drv_info->drv_class)) {
         osalLog(
             OSAL_LOG_LVL_ERROR, OSAL_LOG_DEV_STDOUT, "class_create failed\n");
@@ -656,8 +640,7 @@ chr_drv_destroy_class(chr_drv_info_t* drv_info)
     return ;
 }
 
-static inline void
-chr_drv_destroy_device(chr_drv_info_t *drv_info)
+void chr_drv_destroy_device(chr_drv_info_t *drv_info)
 {
     OSAL_ENSURE_JUST_RETURN(drv_info,
                             "chr_drv_destroy(): Invalid parameter value");
@@ -672,8 +655,7 @@ chr_drv_destroy_device(chr_drv_info_t *drv_info)
                   drv_info->max_minor);
 }
 
-static int
-chr_drv_create_device(chr_drv_info_t *drv_info, char *path)
+int chr_drv_create_device(chr_drv_info_t *drv_info, char *path)
 {
     int ret = 0;
     dev_t devid = 0;

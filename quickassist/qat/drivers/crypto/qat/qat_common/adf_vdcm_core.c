@@ -331,7 +331,8 @@ static int adf_vdcm_vqat_open(struct mdev_device *mdev)
 	int ret;
 
 	dev_info(mdev_dev(mdev), "%s : mdev %p\n", __func__, mdev);
-	adf_dev_get(vqat->parent);
+	if (adf_dev_get(vqat->parent))
+		return -EFAULT;
 	ret = (*vqat->ops->open)(vqat);
 	if (ret)
 		adf_dev_put(vqat->parent);

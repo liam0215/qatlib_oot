@@ -205,6 +205,7 @@ static void adf_device_reset_worker(struct work_struct *work)
 	struct adf_accel_dev *accel_dev = reset_data->accel_dev;
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
+	/* Trying to lock the device for reset */
 	if (adf_dev_restarting_notify_sync(accel_dev)) {
 		if (!pdev->is_busmaster)
 			pci_set_master(pdev);
@@ -230,7 +231,7 @@ static void adf_device_reset_worker(struct work_struct *work)
 			"QAT: device restart failed. Device is unusable\n");
 		if (reset_data->mode == ADF_DEV_RESET_ASYNC)
 			kfree(reset_data);
-		return;
+		goto out;
 	}
 	adf_dev_restarted_notify(accel_dev);
 	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
@@ -240,6 +241,10 @@ static void adf_device_reset_worker(struct work_struct *work)
 		complete(&reset_data->compl);
 	else
 		kfree(reset_data);
+
+out:
+	/* Need to unlock user space access after reset */
+	adf_dev_unlock(accel_dev);
 }
 
 int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,

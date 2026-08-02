@@ -68,6 +68,19 @@ int qdm_attach_device(struct device *dev)
 		return 0;
 	}
 
+	/* Case 1: IOMMU=PT: The qdm_init() function returns without
+	 * allocating IOMMU domain and ensure that the device is with
+	 * the default identity domain and allocate DMA for requests
+	 * and skips the iommu_attach_device().
+	 * Case 2: IOMMU=OFF and PF: The qdm_init() function returns
+	 * without allocating IOMMU domain and return success and
+	 * skipping iommu_attach_device as it is PF.
+	 */
+	if (qdm_init(dev)) {
+		pr_err("QAT: iommu domain allocation failed\n");
+		return -ENOMEM;
+	}
+
 	if (!domain) {
 		if (iommu_under_pt()) {
 			dma_addr_t daddr;
@@ -200,16 +213,23 @@ int qdm_hugepage_iommu_map(dma_addr_t *iova, void *va_page, size_t size)
 }
 EXPORT_SYMBOL_GPL(qdm_hugepage_iommu_map);
 
-int __init qdm_init(void)
+int qdm_init(struct device *dev)
 {
 	if (!qdm_iommu_present() || iommu_under_pt())
 		return 0;
 
-	domain = iommu_domain_alloc(&pci_bus_type);
-
 	if (!domain) {
-		pr_err("QDM: Failed to allocate a domain\n");
-		return -1;
+#if KERNEL_VERSION(3, 2, 0) > LINUX_VERSION_CODE
+		domain = iommu_domain_alloc();
+#elif KERNEL_VERSION(6, 13, 0) > LINUX_VERSION_CODE
+		domain = iommu_domain_alloc(&pci_bus_type);
+#else
+		domain = iommu_paging_domain_alloc(dev);
+#endif
+	}
+	if (!domain || IS_ERR(domain)) {
+		pr_err("QAT: Failed to allocate a domain\n");
+		return -ENOMEM;
 	}
 	return 0;
 }

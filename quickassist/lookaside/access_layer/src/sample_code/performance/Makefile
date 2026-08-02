@@ -32,7 +32,7 @@
 #   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # 
-#  version: QAT20.L.1.2.30-00109
+#  version: QAT20.L.1.2.30-00178
 ############################################################################
 
 
@@ -336,6 +336,7 @@ EXTRA_CFLAGS := $(filter-out $(STACK_PROTECTION), $(EXTRA_CFLAGS))
 endif
 endif
 
+ccflags-y+=$(EXTRA_CFLAGS)
 ifneq ($(PREBUILD_BINS),0)
 include $(ICP_ENV_DIR)/$(ICP_OS)_$(ICP_OS_LEVEL).mk
 endif

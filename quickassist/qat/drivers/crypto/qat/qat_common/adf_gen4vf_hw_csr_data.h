@@ -5,6 +5,7 @@
 
 #define ADF_GEN4VF_VINTMSK_OFFSET	0x4
 #define ADF_GEN4VF_VINTMSKPF2VM_OFFSET	0x1004
+#define ADF_GEN4VF_RP_MASK 0xF
 
 struct adf_hw_csr_info;
 void gen4vf_init_hw_csr_info(struct adf_hw_csr_info *csr_info);

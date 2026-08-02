@@ -57,7 +57,7 @@
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  *****************************************************************************/
 
@@ -127,7 +127,10 @@ module_exit(kapi_mod_exit);
 MODULE_DESCRIPTION("Intel(R) Quickassist Technology Acceleration Driver");
 MODULE_AUTHOR("Intel");
 MODULE_LICENSE("Dual BSD/GPL");
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0) &&                         \
+     LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0))
 MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 13, 0))
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");
 #endif
 MODULE_VERSION(QAT_KAPI_SW_VERSION);

@@ -389,6 +389,9 @@ quickassist/lookaside/access_layer/src/sample_code/functional/sym/hash_file_samp
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hash_sample/Makefile
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hash_sample/cpa_hash_sample.c
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hash_sample/cpa_hash_sample_user.c
+quickassist/lookaside/access_layer/src/sample_code/functional/sym/heartbeat_sample/Makefile
+quickassist/lookaside/access_layer/src/sample_code/functional/sym/heartbeat_sample/cpa_heartbeat_sample.c
+quickassist/lookaside/access_layer/src/sample_code/functional/sym/heartbeat_sample/cpa_heartbeat_sample_user.c
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hkdf_sample/Makefile
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hkdf_sample/cpa_hkdf_sample.c
 quickassist/lookaside/access_layer/src/sample_code/functional/sym/hkdf_sample/cpa_hkdf_sample_user.c

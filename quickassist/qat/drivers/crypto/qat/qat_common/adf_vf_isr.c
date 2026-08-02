@@ -66,8 +66,10 @@ static int adf_enable_msi(struct adf_accel_dev *accel_dev)
 	}
 
 	accel_dev->vf.irq_name = kzalloc(ADF_MAX_MSIX_VECTOR_NAME, GFP_KERNEL);
-	if (!accel_dev->vf.irq_name)
-		return -ENOMEM;
+	if (!accel_dev->vf.irq_name) {
+		pci_disable_msi(pci_dev_info->pci_dev);
+		stat = -ENOMEM;
+	}
 
 	return stat;
 }
@@ -77,6 +79,7 @@ static void adf_disable_msi(struct adf_accel_dev *accel_dev)
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 
 	kfree(accel_dev->vf.irq_name);
+	accel_dev->vf.irq_name = NULL;
 	pci_disable_msi(pdev);
 }
 
@@ -107,6 +110,7 @@ static void adf_dev_stop_async(struct adf_accel_dev *accel_dev)
 	}
 	accel_dev->vf.is_err_notified = false;
 
+	/* Trying to lock the device for reset */
 	if (adf_dev_restarting_notify_sync(accel_dev)) {
 		clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 		return;
@@ -118,6 +122,8 @@ static void adf_dev_stop_async(struct adf_accel_dev *accel_dev)
 	/* Re-enable PF2VF interrupts */
 	hw_data->enable_pf2vf_interrupt(accel_dev);
 	adf_vf2pf_restarting_complete(accel_dev);
+	/* Need to unlock user space access after reset */
+	adf_dev_unlock(accel_dev);
 }
 
 static void adf_dev_start_async(struct adf_accel_dev *accel_dev)
@@ -614,17 +620,26 @@ int adf_vf_isr_resource_alloc(struct adf_accel_dev *accel_dev)
 		return 0;
 
 	if (adf_setup_pf2vf_bh(accel_dev))
-		goto err_out;
+		goto disable_msi;
 
 	if (adf_setup_bh(accel_dev))
-		goto err_out;
+		goto cleanup_pf2vf_bh;
 
 	if (adf_request_msi_irq(accel_dev))
-		goto err_out;
+		goto cleanup_bh;
 
 	return 0;
+
+cleanup_bh:
+	adf_cleanup_bh(accel_dev);
+
+cleanup_pf2vf_bh:
+	adf_cleanup_pf2vf_bh(accel_dev);
+
+disable_msi:
+	adf_disable_msi(accel_dev);
+
 err_out:
-	adf_vf_isr_resource_free(accel_dev);
 	return -EFAULT;
 }
 EXPORT_SYMBOL_GPL(adf_vf_isr_resource_alloc);

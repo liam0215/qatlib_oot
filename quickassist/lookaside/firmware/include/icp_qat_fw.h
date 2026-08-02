@@ -30,7 +30,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  */
 
 /**
@@ -933,11 +933,6 @@ typedef struct icp_qat_fw_comn_resp_s
 /**< @ingroup icp_qat_fw_comn
  * Constant value indicating Src&Dst Buffer Pointer type is SGL type
  * If Batch and Pack mode is enabled, only applies to Destination buffer.*/
-
-#define QAT_COMN_PTR_TYPE_BATCH 0x2
-/**< @ingroup icp_qat_fw_comn
- * Constant value indicating Src is a batch request
- * and Dst Buffer Pointer type is SGL type */
 
 /* ========================================================================= */
 /*                                   Pointer extended_serv_specif_flags      */

@@ -31,7 +31,7 @@
  *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- *  version: QAT20.L.1.2.30-00109
+ *  version: QAT20.L.1.2.30-00178
  *
  ***************************************************************************/
 
@@ -1911,7 +1911,7 @@ void dcDpPerformance(single_thread_test_data_t *testSetup)
     Cpa16U numInstances = 0;
     CpaInstanceHandle *instances = NULL;
     CpaStatus status = CPA_STATUS_FAIL;
-    CpaDcInstanceCapabilities capabilities = {0};
+    CpaDcInstanceCapabilities *capabilities = NULL;
     CpaInstanceInfo2 *instanceInfo = NULL;
 #if defined(USER_SPACE) && !defined(SC_EPOLL_DISABLED)
     int fd = -1;
@@ -1955,6 +1955,14 @@ void dcDpPerformance(single_thread_test_data_t *testSetup)
         PRINT("Error calculating required buffers\n");
         goto exit;
     }
+
+    capabilities = qaeMemAlloc(sizeof(CpaDcInstanceCapabilities));
+    if (capabilities == NULL)
+    {
+       PRINT_ERR("Failed to allocate Memory for capabilities");
+       goto exit;
+    }
+    memset(capabilities, 0, sizeof(CpaDcInstanceCapabilities));
 
     instanceInfo = qaeMemAlloc(sizeof(CpaInstanceInfo2));
     if (instanceInfo == NULL)
@@ -2002,13 +2010,13 @@ void dcDpPerformance(single_thread_test_data_t *testSetup)
         instances[(testSetup->logicalQaInstance) % numInstances];
 
     /*check if dynamic compression is supported*/
-    status = cpaDcQueryCapabilities(dcSetup.dcInstanceHandle, &capabilities);
+    status = cpaDcQueryCapabilities(dcSetup.dcInstanceHandle, capabilities);
     if (CPA_STATUS_SUCCESS != status)
     {
         PRINT_ERR("%s::%d cpaDcQueryCapabilities failed", __func__, __LINE__);
         goto exit;
     }
-    if (CPA_FALSE == capabilities.dynamicHuffman &&
+    if (CPA_FALSE == capabilities->dynamicHuffman &&
         tmpSetup->setupData.huffType == CPA_DC_HT_FULL_DYNAMIC)
     {
         PRINT("Dynamic is not supported on logical instance %d\n",
@@ -2031,7 +2039,7 @@ void dcDpPerformance(single_thread_test_data_t *testSetup)
     }
     if (CPA_STATUS_SUCCESS !=
         qatDcGetPreTestRecoveryCount(
-            &dcSetup, &capabilities, testSetup->performanceStats))
+            &dcSetup, capabilities, testSetup->performanceStats))
     {
         testSetup->performanceStats->threadReturnStatus = CPA_STATUS_FAIL;
         goto exit;
@@ -2108,6 +2116,10 @@ exit:
     if (instanceInfo != NULL)
     {
         qaeMemFree((void **)&instanceInfo);
+    }
+    if (capabilities != NULL)
+    {
+        qaeMemFree((void **)&capabilities);
     }
 
     sampleCodeThreadComplete(testSetup->threadID);

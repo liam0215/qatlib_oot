@@ -906,15 +906,12 @@ static int __init adf_register_ctl_device_driver(void)
 #ifdef QAT_UIO
 	if (adf_processes_dev_register())
 		goto err_processes_dev_register;
-	if (qdm_init())
-		goto err_qdm_init;
 	if (adf_uio_service_register())
 		goto err_adf_service_register;
 
 	return 0;
 
 err_adf_service_register:
-err_qdm_init:
 	adf_processes_dev_unregister();
 err_processes_dev_register:
 	qat_crypto_unregister();
